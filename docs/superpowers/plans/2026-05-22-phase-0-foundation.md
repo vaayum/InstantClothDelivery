@@ -21,7 +21,7 @@
 | Create | `packages/auth/src/index.ts` | `signJwt`, `verifyJwt`, `requireAuth`, `JwtPayload` |
 | Create | `packages/auth/tests/jwt.test.ts` | Unit tests for all three exports |
 | Create | `packages/database/src/index.ts` | Prisma singleton export |
-| Create | `packages/database/src/seed.ts` | 1 zone · 1 warehouse · 10 products · 26 SKUs · inventory |
+| Create | `packages/database/src/seed.ts` | 1 zone · 1 warehouse · 10 products · 23 SKUs · inventory |
 | Modify | `packages/database/package.json` | Add `main` field and `build` script |
 | Create | `services/api-gateway/src/lib/redis.ts` | ioredis singleton |
 | Create | `services/api-gateway/src/lib/twilio.ts` | `sendSms` helper (no-ops without credentials) |
@@ -660,8 +660,8 @@ Open `http://localhost:5555`. Confirm:
 - `zones`: 1 row — "Bengaluru Central"
 - `warehouses`: 1 row — "ThreadDash HSR Hub"
 - `products`: 10 rows
-- `skus`: 26 rows
-- `inventory`: 26 rows, all `quantityAvailable = 8`
+- `skus`: 23 rows
+- `inventory`: 23 rows, all `quantityAvailable = 8`
 
 Press Ctrl+C to exit.
 
@@ -669,7 +669,7 @@ Press Ctrl+C to exit.
 
 ```bash
 cd ../.. && git add packages/database
-git commit -m "feat: add Prisma singleton and seed (1 zone, 1 warehouse, 10 products, 26 SKUs)"
+git commit -m "feat: add Prisma singleton and seed (1 zone, 1 warehouse, 10 products, 23 SKUs)"
 ```
 
 ---
@@ -1169,7 +1169,7 @@ Expected: `{"user":{"userId":"...","role":"CUSTOMER","phone":"+919876500001"}}`
 cd packages/database && npx prisma studio
 ```
 
-Open `http://localhost:5555` — confirm 10 products and 26 inventory rows with `quantityAvailable = 8`.
+Open `http://localhost:5555` — confirm 10 products and 23 inventory rows with `quantityAvailable = 8`.
 
 - [ ] **Step 7: Final commit and tag**
 
