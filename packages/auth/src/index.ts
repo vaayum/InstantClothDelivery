@@ -7,16 +7,24 @@ export interface JwtPayload {
   phone: string;
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JwtPayload;
+    }
+  }
+}
+
 export function signJwt(payload: JwtPayload): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET not set");
   return jwt.sign(payload, secret, { expiresIn: "7d" });
 }
 
-export function verifyJwt(token: string): JwtPayload {
+export function verifyJwt(token: string): JwtPayload & jwt.JwtPayload {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET not set");
-  return jwt.verify(token, secret) as JwtPayload;
+  return jwt.verify(token, secret) as JwtPayload & jwt.JwtPayload;
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -28,7 +36,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   try {
     const token = header.slice(7);
     const payload = verifyJwt(token);
-    (req as any).user = payload;
+    req.user = payload;
     next();
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });

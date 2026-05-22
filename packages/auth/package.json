@@ -9,11 +9,14 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --no-coverage"
   },
+  "peerDependencies": {
+    "express": "^4.x"
+  },
   "dependencies": {
-    "jsonwebtoken": "^9.0.0",
-    "express": "^4.19.0"
+    "jsonwebtoken": "^9.0.0"
   },
   "devDependencies": {
+    "express": "^4.19.0",
     "@types/express": "^4.17.0",
     "@types/jest": "^29.0.0",
     "@types/jsonwebtoken": "^9.0.0",
