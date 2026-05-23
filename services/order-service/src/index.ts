@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import ordersRouter from "./routes/orders";
+import trialRouter from "./routes/trial";
 
 dotenv.config();
 
@@ -13,6 +14,7 @@ app.get("/health", (_req, res) =>
 );
 
 app.use("/", ordersRouter);
+app.use("/", trialRouter);
 
 if (require.main === module) {
   app.listen(PORT, () => console.log(`Order Service on port ${PORT}`));
