@@ -156,3 +156,145 @@ describe("POST /", () => {
     expect(res.status).toBe(503);
   });
 });
+
+const EXISTING_ORDER = {
+  id: "order-existing",
+  userId: "user-1",
+  warehouseId: "wh-hsr",
+  status: "PENDING" as const,
+  paymentMethod: "UPI",
+  items: [
+    { id: "item-1", skuId: "sku-os-s", quantity: 1, price: 129900, status: "PENDING" },
+  ],
+  address: { id: "addr-1", formattedAddress: "Koramangala" },
+};
+
+describe("GET /:id", () => {
+  it("returns 200 with order for the authenticated user", async () => {
+    const mockPrisma = {
+      order: { findUnique: jest.fn().mockResolvedValue(EXISTING_ORDER) },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    const res = await request(app).get("/order-existing");
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe("order-existing");
+  });
+
+  it("returns 404 when order not found", async () => {
+    const mockPrisma = {
+      order: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    const res = await request(app).get("/order-not-found");
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 403 when order belongs to a different user", async () => {
+    const mockPrisma = {
+      order: { findUnique: jest.fn().mockResolvedValue({ ...EXISTING_ORDER, userId: "user-other" }) },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    const res = await request(app).get("/order-existing");
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("PATCH /:id/status", () => {
+  it("returns 200 and calls transitionOrder", async () => {
+    const { transitionOrder } = await import("../src/transitions");
+    const mockTransition = transitionOrder as jest.MockedFunction<typeof transitionOrder>;
+    mockTransition.mockResolvedValue({ id: "order-existing", status: "WAREHOUSE_PROCESSING" } as any);
+
+    const res = await request(app)
+      .patch("/order-existing/status")
+      .send({ status: "WAREHOUSE_PROCESSING" });
+
+    expect(res.status).toBe(200);
+    expect(mockTransition).toHaveBeenCalledWith("order-existing", "WAREHOUSE_PROCESSING", "user-1");
+  });
+
+  it("returns 409 when transition is invalid", async () => {
+    const { transitionOrder } = await import("../src/transitions");
+    (transitionOrder as jest.Mock).mockRejectedValue(
+      new Error("Cannot transition from COMPLETED to PENDING")
+    );
+    const res = await request(app)
+      .patch("/order-existing/status")
+      .send({ status: "PENDING" });
+    expect(res.status).toBe(409);
+  });
+});
+
+describe("POST /:id/cancel", () => {
+  it("transitions to CANCELLED and releases inventory", async () => {
+    const { transitionOrder } = await import("../src/transitions");
+    (transitionOrder as jest.Mock).mockResolvedValue({ id: "order-existing", status: "CANCELLED" });
+
+    const mockPrisma = {
+      order: { findUnique: jest.fn().mockResolvedValue(EXISTING_ORDER) },
+      warehouse: { update: jest.fn().mockResolvedValue({}) },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    mockGetRedis.mockReturnValue(mockRedis as any);
+    mockAxios.post.mockResolvedValueOnce({ data: { success: true } });
+
+    const res = await request(app).post("/order-existing/cancel");
+
+    expect(res.status).toBe(200);
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining("/inventory/release"),
+      expect.objectContaining({ items: expect.any(Array) })
+    );
+  });
+
+  it("returns 404 when order not found", async () => {
+    const mockPrisma = {
+      order: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    const res = await request(app).post("/order-not-found/cancel");
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /:id/mark-absent", () => {
+  it("increments absentAttempts and returns updated count", async () => {
+    const mockPrisma = {
+      deliveryAssignment: {
+        findUnique: jest.fn().mockResolvedValue({ orderId: "order-existing", absentAttempts: 1 }),
+        update: jest.fn().mockResolvedValue({ absentAttempts: 2 }),
+      },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    const res = await request(app).post("/order-existing/mark-absent");
+    expect(res.status).toBe(200);
+    expect(res.body.absentAttempts).toBe(2);
+  });
+
+  it("publishes order.absent_threshold_reached on 3rd absence", async () => {
+    const mockPrisma = {
+      deliveryAssignment: {
+        findUnique: jest.fn().mockResolvedValue({ orderId: "order-existing", absentAttempts: 2 }),
+        update: jest.fn().mockResolvedValue({ absentAttempts: 3 }),
+      },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+
+    await request(app).post("/order-existing/mark-absent");
+
+    const mockPub = publishEvent as jest.MockedFunction<typeof publishEvent>;
+    expect(mockPub).toHaveBeenCalledWith(
+      "order.absent_threshold_reached",
+      expect.objectContaining({ orderId: "order-existing", attempts: 3 })
+    );
+  });
+
+  it("returns 404 when no assignment found", async () => {
+    const mockPrisma = {
+      deliveryAssignment: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    const res = await request(app).post("/order-not-found/mark-absent");
+    expect(res.status).toBe(404);
+  });
+});

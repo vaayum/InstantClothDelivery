@@ -130,4 +130,104 @@ router.post("/", requireAuth, async (req, res) => {
   return res.status(201).json({ ...order, estimatedMinutes: routingResult.eta_minutes });
 });
 
+router.get("/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const prisma = getPrisma();
+
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: {
+      items: { include: { sku: { include: { product: true } } } },
+      address: true,
+    },
+  });
+
+  if (!order) return res.status(404).json({ error: "Order not found" });
+  if (order.userId !== req.user!.userId) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  return res.json(order);
+});
+
+router.patch("/:id/status", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body as { status: string };
+
+  if (!status) return res.status(400).json({ error: "status required" });
+
+  try {
+    const { transitionOrder } = await import("../transitions");
+    const updated = await transitionOrder(id, status as any, req.user!.userId);
+    return res.json(updated);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Status update failed";
+    const code = message.includes("Cannot transition") || message.includes("not found") ? 409 : 500;
+    return res.status(code).json({ error: message });
+  }
+});
+
+router.post("/:id/cancel", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const prisma = getPrisma();
+
+  const order = await prisma.order.findUnique({ where: { id }, include: { items: true } });
+  if (!order) return res.status(404).json({ error: "Order not found" });
+  if (order.userId !== req.user!.userId) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  try {
+    const { transitionOrder } = await import("../transitions");
+    await transitionOrder(id, "CANCELLED", req.user!.userId);
+
+    await axios.post(`${WAREHOUSE_URL}/inventory/release`, {
+      items: order.items.map((item) => ({
+        skuId: item.skuId,
+        warehouseId: order.warehouseId,
+        quantity: item.quantity,
+      })),
+    });
+
+    await prisma.warehouse.update({
+      where: { id: order.warehouseId },
+      data: { activeOrderCount: { decrement: 1 } },
+    });
+
+    const redis = getRedis();
+    await redis.del(`sla:order:${id}`);
+
+    return res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Cancel failed";
+    const code = message.includes("Cannot transition") ? 409 : 500;
+    return res.status(code).json({ error: message });
+  }
+});
+
+router.post("/:id/mark-absent", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const prisma = getPrisma();
+
+  const assignment = await prisma.deliveryAssignment.findUnique({ where: { orderId: id } });
+  if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+
+  const newAttempts = assignment.absentAttempts + 1;
+
+  await prisma.deliveryAssignment.update({
+    where: { orderId: id },
+    data: { absentAttempts: newAttempts },
+  });
+
+  if (newAttempts >= 3) {
+    await publishEvent("order.absent_threshold_reached", {
+      orderId: id,
+      attempts: newAttempts,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  return res.json({ absentAttempts: newAttempts });
+});
+
 export default router;
