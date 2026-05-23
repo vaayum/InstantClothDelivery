@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import ordersRouter from "./routes/orders";
 import trialRouter from "./routes/trial";
+import { startSlaMonitor } from "./sla-monitor";
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use("/", ordersRouter);
 app.use("/", trialRouter);
 
 if (require.main === module) {
+  startSlaMonitor();
   app.listen(PORT, () => console.log(`Order Service on port ${PORT}`));
 }
 
