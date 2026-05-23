@@ -1,0 +1,16 @@
+import express from "express";
+import dotenv from "dotenv";
+
+dotenv.config();
+const app = express();
+const PORT = process.env.PAYMENT_SERVICE_PORT ?? 3004;
+app.use(express.json());
+
+app.get("/health", (_req, res) => res.json({ status: "ok", service: "payment-service" }));
+
+// POST /payments/create-order  — create Razorpay order; pre-auth for Try orders
+// POST /payments/capture        — capture only for kept items after trial
+// POST /payments/refund         — instant refund for returned items (< 2 min SLA)
+// POST /payments/webhook        — Razorpay webhook (verify signature, update DB)
+
+app.listen(PORT, () => console.log(`Payment Service on port ${PORT}`));

@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: threaddash_postgres
+    environment:
+      POSTGRES_USER: threaddash
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: threaddash_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U threaddash"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: threaddash_redis
+    ports:
+      - "6380:6379"  # 6379 used by another local project; internal port stays 6379
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: threaddash_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # Management UI: http://localhost:15672 (guest/guest)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: threaddash_osrm
+    ports:
+      - "5000:5000"
+    # Mount a processed OSRM data file here for local routing.
+    # Routing service falls back to Google Maps if OSRM is unavailable.
+    command: osrm-routed --algorithm mld /data/map.osrm
+    volumes:
+      - ./infrastructure/osrm-data:/data
+    profiles:
+      - routing
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
