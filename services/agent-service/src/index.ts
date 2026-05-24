@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import assignmentsRouter from "./routes/assignments";
 import agentsRouter from "./routes/agents";
 import { startConsumer } from "./consumer";
+import { startAcceptTimeoutMonitor } from "./accept-timeout";
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use("/agents", agentsRouter);
 
 if (require.main === module) {
   startConsumer().catch(console.error);
+  startAcceptTimeoutMonitor();
   app.listen(PORT, () => console.log(`Agent Service on port ${PORT}`));
 }
 

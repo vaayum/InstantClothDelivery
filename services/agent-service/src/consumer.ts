@@ -79,11 +79,18 @@ export async function handleOrderReadyForPickup(payload: OrderStatusChangedPaylo
   const best = data.candidates[0];
 
   await prisma.$transaction(async (tx) => {
-    await tx.deliveryAssignment.create({
-      data: {
-        orderId,
+    await tx.deliveryAssignment.upsert({
+      where: { orderId },
+      create: { orderId, agentId: best.agent_id, status: "ASSIGNED" },
+      update: {
         agentId: best.agent_id,
         status: "ASSIGNED",
+        assignedAt: new Date(),
+        acceptedAt: null,
+        pickedUpAt: null,
+        arrivedAt: null,
+        deliveredAt: null,
+        absentAttempts: 0,
       },
     });
     await tx.agent.update({

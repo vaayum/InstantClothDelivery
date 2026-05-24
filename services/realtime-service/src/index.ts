@@ -20,6 +20,12 @@ io.on("connection", (socket) => {
   );
 });
 
+app.post("/emit/agent-location", (req, res) => {
+  const data = req.body as AgentLocationUpdate;
+  io.to(`order:${data.orderId}`).emit("agent:location", data);
+  res.json({ ok: true });
+});
+
 app.post("/emit/order-status", (req, res) => {
   const data = req.body as OrderStatusUpdate;
   io.to(`order:${data.orderId}`).emit("order:status", data);

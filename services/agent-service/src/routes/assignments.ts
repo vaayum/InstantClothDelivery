@@ -4,9 +4,11 @@ import { requireAuth } from "@threaddash/auth";
 import { getPrisma } from "../lib/db";
 import { requireRole } from "../lib/role";
 import { transitionAssignment } from "../transitions";
+import { publishEvent } from "../lib/rabbitmq";
 
 const router = Router();
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL ?? "http://localhost:3001";
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL ?? "http://localhost:3004";
 const requireAgent = requireRole("AGENT");
 
 // GET /assignments/:orderId
@@ -60,6 +62,14 @@ router.post("/:orderId/decline", requireAuth, requireAgent, async (req, res) => 
     await prisma.agent.update({
       where: { id: assignment.agentId },
       data: { status: "AVAILABLE" },
+    });
+
+    await publishEvent("order.status_changed", {
+      orderId,
+      from: "AGENT_ASSIGNED",
+      to: "READY_FOR_PICKUP",
+      actor: "system",
+      timestamp: new Date().toISOString(),
     });
 
     return res.json({ success: true });
@@ -183,6 +193,12 @@ router.post("/:orderId/absent", requireAuth, requireAgent, async (req, res) => {
         await axios.post(`${ORDER_SERVICE_URL}/${orderId}/mark-absent`);
       } catch (err) {
         console.error("POST /assignments/:orderId/absent order-service error (non-fatal)", err);
+      }
+
+      try {
+        await axios.post(`${PAYMENT_SERVICE_URL}/payments/charge-noshow`, { orderId, amount: 9900 });
+      } catch (err) {
+        console.error("POST /assignments/:orderId/absent payment charge error (non-fatal)", err);
       }
     }
 
