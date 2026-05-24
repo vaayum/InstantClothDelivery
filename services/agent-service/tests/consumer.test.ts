@@ -51,6 +51,7 @@ function makeMockPrisma(overrides: any = {}) {
       findUniqueOrThrow: jest.fn(),
       update: jest.fn().mockResolvedValue({}),
       create: jest.fn().mockResolvedValue({}),
+      upsert: jest.fn().mockResolvedValue({}),
     },
     agent: {
       findUnique: jest.fn(),
@@ -115,13 +116,11 @@ describe("handleOrderReadyForPickup", () => {
 
     // Creates DeliveryAssignment + updates Agent in $transaction
     expect(mockPrisma.$transaction).toHaveBeenCalled();
-    expect(mockPrisma.deliveryAssignment.create).toHaveBeenCalledWith(
+    expect(mockPrisma.deliveryAssignment.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          orderId: "order-1",
-          agentId: "agent-1",
-          status: "ASSIGNED",
-        }),
+        where: { orderId: "order-1" },
+        create: expect.objectContaining({ orderId: "order-1", agentId: "agent-1", status: "ASSIGNED" }),
+        update: expect.objectContaining({ agentId: "agent-1", status: "ASSIGNED" }),
       })
     );
     expect(mockPrisma.agent.update).toHaveBeenCalledWith(

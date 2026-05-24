@@ -41,6 +41,7 @@ function makeMockPrisma(overrides: any = {}) {
       findUniqueOrThrow: jest.fn(),
       update: jest.fn().mockResolvedValue({}),
       create: jest.fn().mockResolvedValue({}),
+      findFirst: jest.fn().mockResolvedValue(null),
     },
     agent: {
       findUnique: jest.fn(),
