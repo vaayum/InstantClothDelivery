@@ -33,6 +33,7 @@ const routes: Record<string, string> = {
   "/api/routing":       `http://localhost:${process.env.ROUTING_SERVICE_PORT ?? 8000}`,
   "/api/notifications": `http://localhost:${process.env.NOTIFICATION_SERVICE_PORT ?? 3003}`,
   "/api/payments":      `http://localhost:${process.env.PAYMENT_SERVICE_PORT ?? 3004}`,
+  "/api/agents":        `http://localhost:${process.env.AGENT_SERVICE_PORT ?? 3006}`,
 };
 
 for (const [path, target] of Object.entries(routes)) {
