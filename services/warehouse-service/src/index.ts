@@ -1,6 +1,9 @@
 import express from "express";
 import dotenv from "dotenv";
 import inventoryRouter from "./routes/inventory";
+import pickingRouter from "./routes/picking";
+import returnsRouter from "./routes/returns";
+import { startConsumer } from "./consumer";
 
 dotenv.config();
 
@@ -13,8 +16,11 @@ app.get("/health", (_req, res) =>
 );
 
 app.use("/inventory", inventoryRouter);
+app.use("/picking-queue", pickingRouter);
+app.use("/returns", returnsRouter);
 
 if (require.main === module) {
+  startConsumer().catch(console.error);
   app.listen(PORT, () => console.log(`Warehouse Service on port ${PORT}`));
 }
 
