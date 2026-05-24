@@ -46,7 +46,8 @@ export async function startConsumer(): Promise<void> {
       const payload = JSON.parse(msg.content.toString());
       await handleOrderPlaced(payload);
       ch.ack(msg);
-    } catch {
+    } catch (err) {
+      console.error(`[warehouse-consumer] Failed to process message:`, err);
       ch.nack(msg, false, false);
     }
   });
