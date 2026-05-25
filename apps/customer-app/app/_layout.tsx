@@ -4,16 +4,18 @@ import { Stack, router } from "expo-router";
 import { getToken } from "./lib/api";
 
 export default function RootLayout() {
-  const [ready, setReady] = useState(false);
+  const [token, setToken] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
-    getToken().then((token) => {
-      if (!token) router.replace("/login");
-      setReady(true);
-    });
+    getToken().then(setToken);
   }, []);
 
-  if (!ready) {
+  useEffect(() => {
+    if (token === undefined) return;
+    if (!token) router.replace("/login");
+  }, [token]);
+
+  if (token === undefined) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size="large" color="#fff" />
