@@ -5,11 +5,11 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { api, clearSession, getAgentId } from "../lib/api";
-import type { Assignment, AgentProfile, AgentStatus } from "../lib/types";
+import type { Assignment, AgentProfile, AgentStatus, OrderItem } from "../lib/types";
 import { useLocation } from "../hooks/useLocation";
 
 interface AgentWithAssignment extends AgentProfile {
-  activeAssignment?: Assignment & { order?: { id: string; deliveryAddress: string; items: unknown[] } };
+  activeAssignment?: Assignment & { order?: { id: string; deliveryAddress: string; items: OrderItem[] } };
 }
 
 export default function Dashboard() {

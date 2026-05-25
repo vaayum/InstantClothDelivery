@@ -2,6 +2,7 @@ import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { api, saveSession } from "./lib/api";
+import { getExpoPushToken } from "./lib/notifications";
 
 export default function LoginScreen() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
@@ -11,7 +12,8 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
 
   async function sendOtp() {
-    if (!phone.trim()) return;
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) { setError("Enter a valid phone number."); return; }
     setLoading(true);
     setError("");
     try {
@@ -32,7 +34,9 @@ export default function LoginScreen() {
       const res = await api.post("/auth/verify-otp", { phone: phone.trim(), otp });
       const { token, userId } = res.data as { token: string; userId: string };
       await saveSession(token, userId);
-      api.patch("/auth/fcm-token", { token: "placeholder-fcm" }).catch(() => {});
+      getExpoPushToken().then((pushToken) => {
+        if (pushToken) api.patch("/auth/fcm-token", { token: pushToken }).catch(() => {});
+      });
       router.replace("/(tabs)");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;

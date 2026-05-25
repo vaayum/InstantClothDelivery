@@ -10,7 +10,8 @@
     "plugins": [
       "expo-router",
       ["expo-location", { "locationAlwaysAndWhenInUsePermission": "ThreadDash needs location for delivery assignments." }],
-      ["expo-camera", { "cameraPermission": "ThreadDash needs camera for barcode scanning." }]
+      ["expo-camera", { "cameraPermission": "ThreadDash needs camera for barcode scanning." }],
+      "expo-notifications"
     ]
   }
 }

@@ -48,6 +48,10 @@ export interface Assignment {
   createdAt: string;
 }
 
+export interface AssignmentWithOrder extends Assignment {
+  order: Order;
+}
+
 export interface AgentProfile {
   id: string;
   userId: string;

@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { api, clearSession } from "../lib/api";
-import type { OrderItem } from "../lib/types";
+import type { AssignmentWithOrder, OrderItem } from "../lib/types";
 
 type ItemDecision = "KEEP" | "RETURN";
 
@@ -14,12 +14,14 @@ export default function TrialScreen() {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [decisions, setDecisions] = useState<Record<string, ItemDecision>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
-      const res = await api.get<{ order: { items: OrderItem[] } }>(`/api/agents/assignments/${orderId}`);
+      const res = await api.get<AssignmentWithOrder>(`/api/agents/assignments/${orderId}`);
       const orderItems = res.data.order?.items ?? [];
       setItems(orderItems);
       const initial: Record<string, ItemDecision> = {};
@@ -30,6 +32,7 @@ export default function TrialScreen() {
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) { await clearSession(); router.replace("/login"); }
+      else setError(true);
     } finally {
       setLoading(false);
     }
@@ -69,6 +72,17 @@ export default function TrialScreen() {
 
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color="#fff" /></View>;
+  }
+
+  if (error) {
+    return (
+      <View style={s.center}>
+        <Text style={s.errorText}>Could not load items.</Text>
+        <TouchableOpacity style={s.retryBtn} onPress={load}>
+          <Text style={s.retryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   const keptCount = Object.values(decisions).filter((d) => d === "KEEP").length;
@@ -122,6 +136,9 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: 24, paddingBottom: 8 },
   center: { flex: 1, backgroundColor: "#111", alignItems: "center", justifyContent: "center" },
+  errorText: { color: "#888", fontSize: 16, marginBottom: 16 },
+  retryBtn: { borderWidth: 1, borderColor: "#555", borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
+  retryText: { color: "#ccc", fontSize: 15 },
   heading: { fontSize: 24, fontWeight: "bold", color: "#fff", marginBottom: 4 },
   sub: { color: "#888", fontSize: 14, marginBottom: 24 },
   itemCard: {
