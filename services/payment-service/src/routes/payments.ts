@@ -156,10 +156,11 @@ router.post("/charge-noshow", async (req, res) => {
 router.post("/webhook", async (req, res) => {
   const signature = req.headers["x-razorpay-signature"] as string;
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET ?? "";
+  const rawBody = req.body as Buffer;
 
   const expectedSig = crypto
     .createHmac("sha256", secret)
-    .update(JSON.stringify(req.body))
+    .update(rawBody)
     .digest("hex");
 
   const sigBuf = Buffer.from(signature ?? "");
@@ -168,7 +169,7 @@ router.post("/webhook", async (req, res) => {
     return res.status(400).json({ error: "Invalid signature" });
   }
 
-  const { event, payload } = req.body as {
+  const { event, payload } = JSON.parse(rawBody.toString()) as {
     event: string;
     payload: { payment: { entity: { order_id: string } } };
   };
