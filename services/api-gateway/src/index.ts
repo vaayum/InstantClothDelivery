@@ -40,8 +40,22 @@ const routes: Record<string, string> = {
   "/api/agents":        `http://localhost:${process.env.AGENT_SERVICE_PORT ?? 3006}`,
 };
 
+function restream(proxyReq: any, req: any) {
+  if (req.body && ["POST", "PUT", "PATCH"].includes(req.method)) {
+    const body = JSON.stringify(req.body);
+    proxyReq.setHeader("Content-Type", "application/json");
+    proxyReq.setHeader("Content-Length", Buffer.byteLength(body));
+    proxyReq.write(body);
+  }
+}
+
 for (const [path, target] of Object.entries(routes)) {
-  app.use(createProxyMiddleware({ pathFilter: path, target, changeOrigin: true }));
+  app.use(createProxyMiddleware({
+    pathFilter: path,
+    target,
+    changeOrigin: true,
+    on: { proxyReq: restream },
+  }));
 }
 
 if (require.main === module) {
