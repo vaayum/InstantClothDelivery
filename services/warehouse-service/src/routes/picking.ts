@@ -1,5 +1,7 @@
 import { Router } from "express";
 import axios from "axios";
+import { Prisma } from "@prisma/client";
+import type { PickingItem } from "@prisma/client";
 import { requireAuth } from "@threaddash/auth";
 import { getPrisma } from "../lib/db";
 import { requireRole } from "../lib/role";
@@ -34,11 +36,11 @@ router.post("/:orderId/pick-item", requireAuth, requireWarehouseStaff, async (re
   });
   if (!task) return res.status(404).json({ error: "PickingTask not found" });
 
-  const item = task.items.find((i) => i.skuId === skuId);
+  const item = task.items.find((i: PickingItem) => i.skuId === skuId);
   if (!item) return res.status(404).json({ error: "Item not found in task" });
   if (item.status !== "PENDING") return res.status(409).json({ error: "Item already scanned" });
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.pickingItem.update({
       where: { id: item.id },
       data: { status: status as "FOUND" | "NOT_AVAILABLE", scannedAt: new Date() },
@@ -72,14 +74,14 @@ router.post("/:orderId/pack-ready", requireAuth, requireWarehouseStaff, async (r
   });
   if (!task) return res.status(404).json({ error: "PickingTask not found" });
 
-  if (task.items.some((i) => i.status === "PENDING")) {
+  if (task.items.some((i: PickingItem) => i.status === "PENDING")) {
     return res.status(400).json({ error: "All items must be scanned before packing" });
   }
 
-  const foundItems = task.items.filter((i) => i.status === "FOUND");
-  const notAvailableItems = task.items.filter((i) => i.status === "NOT_AVAILABLE");
+  const foundItems = task.items.filter((i: PickingItem) => i.status === "FOUND");
+  const notAvailableItems = task.items.filter((i: PickingItem) => i.status === "NOT_AVAILABLE");
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.pickingTask.update({ where: { id: task.id }, data: { status: "PACKED" } });
     for (const item of foundItems) {
       await tx.inventory.update({

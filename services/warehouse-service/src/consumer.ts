@@ -1,4 +1,5 @@
 import amqp from "amqplib";
+import type { OrderItem } from "@prisma/client";
 import { getPrisma } from "./lib/db";
 
 const EXCHANGE = "threaddash";
@@ -21,7 +22,7 @@ export async function handleOrderPlaced(payload: {
       status: "PENDING",
       slaDeadline,
       items: {
-        create: items.map((item) => ({
+        create: items.map((item: OrderItem) => ({
           skuId: item.skuId,
           quantity: item.quantity,
           status: "PENDING",

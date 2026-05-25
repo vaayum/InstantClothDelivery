@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { getPrisma } from "../lib/db";
 
 const router = Router();
@@ -16,7 +17,7 @@ router.post("/reserve", async (req, res) => {
   const prisma = getPrisma();
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       for (const item of items) {
         const inv = await tx.inventory.findUnique({
           where: { skuId_warehouseId: { skuId: item.skuId, warehouseId: item.warehouseId } },
@@ -55,7 +56,7 @@ router.post("/release", async (req, res) => {
   const prisma = getPrisma();
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       for (const item of items) {
         await tx.inventory.update({
           where: { skuId_warehouseId: { skuId: item.skuId, warehouseId: item.warehouseId } },

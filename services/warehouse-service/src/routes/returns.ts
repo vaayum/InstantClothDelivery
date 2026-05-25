@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { requireAuth } from "@threaddash/auth";
 import { getPrisma } from "../lib/db";
 import { requireRole } from "../lib/role";
@@ -31,7 +32,7 @@ router.post("/receive", requireAuth, requireWarehouseStaff, async (req, res) => 
   const existing = await prisma.return.findUnique({ where: { orderItemId } });
   if (existing) return res.status(409).json({ error: "Return already exists for this item" });
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.return.create({
       data: {
         orderId: orderItem.orderId,
