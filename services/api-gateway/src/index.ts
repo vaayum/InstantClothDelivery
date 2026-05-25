@@ -41,7 +41,7 @@ const routes: Record<string, string> = {
 };
 
 for (const [path, target] of Object.entries(routes)) {
-  app.use(path, createProxyMiddleware({ target, changeOrigin: true }));
+  app.use(createProxyMiddleware({ pathFilter: path, target, changeOrigin: true }));
 }
 
 if (require.main === module) {
