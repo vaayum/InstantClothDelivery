@@ -6,7 +6,7 @@ import internalRouter from "./routes/internal";
 import catalogRouter from "./routes/catalog";
 import adminRouter from "./routes/admin";
 import { startSlaMonitor } from "./sla-monitor";
-import { startTrialTimeoutMonitor } from "./trial-timeout";
+import { startTrialTimeoutMonitor, startTrialTimerBroadcast } from "./trial-timeout";
 
 dotenv.config();
 
@@ -27,6 +27,7 @@ app.use("/internal", internalRouter);
 if (require.main === module) {
   startSlaMonitor();
   startTrialTimeoutMonitor();
+  startTrialTimerBroadcast();
   app.listen(PORT, () => console.log(`Order Service on port ${PORT}`));
 }
 

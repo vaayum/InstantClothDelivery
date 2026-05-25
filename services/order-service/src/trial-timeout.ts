@@ -7,6 +7,7 @@ import { transitionOrder } from "./transitions";
 
 const WAREHOUSE_URL = process.env.WAREHOUSE_SERVICE_URL ?? "http://localhost:3002";
 const PAYMENT_URL = process.env.PAYMENT_SERVICE_URL ?? "http://localhost:3004";
+const REALTIME_URL = process.env.REALTIME_SERVICE_URL ?? "http://localhost:3005";
 
 export async function expireTrials(): Promise<void> {
   const prisma = getPrisma();
@@ -75,10 +76,39 @@ export async function expireTrials(): Promise<void> {
   }
 }
 
+async function broadcastTrialTimers(): Promise<void> {
+  const redis = getRedis();
+  const keys = await redis.keys("trial:order:*");
+  if (keys.length === 0) return;
+
+  await Promise.all(
+    keys.map(async (key) => {
+      const val = await redis.get(key);
+      if (!val) return;
+      const orderId = key.replace("trial:order:", "");
+      const secondsRemaining = Math.max(
+        0,
+        Math.floor((new Date(val).getTime() - Date.now()) / 1000)
+      );
+      await axios
+        .post(`${REALTIME_URL}/emit/trial-timer`, { orderId, secondsRemaining })
+        .catch(() => {});
+    })
+  );
+}
+
 export function startTrialTimeoutMonitor(): void {
   cron.schedule("* * * * *", () => {
     expireTrials().catch((err) =>
       console.error("[trial-timeout] Cron error:", err)
+    );
+  });
+}
+
+export function startTrialTimerBroadcast(): void {
+  cron.schedule("*/30 * * * * *", () => {
+    broadcastTrialTimers().catch((err) =>
+      console.error("[trial-timer-broadcast] Cron error:", err)
     );
   });
 }
