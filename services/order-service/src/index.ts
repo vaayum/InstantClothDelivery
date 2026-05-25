@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import ordersRouter from "./routes/orders";
 import trialRouter from "./routes/trial";
 import internalRouter from "./routes/internal";
+import catalogRouter from "./routes/catalog";
 import { startSlaMonitor } from "./sla-monitor";
 import { startTrialTimeoutMonitor } from "./trial-timeout";
 
@@ -18,6 +19,7 @@ app.get("/health", (_req, res) =>
 
 app.use("/", ordersRouter);
 app.use("/", trialRouter);
+app.use("/", catalogRouter);
 app.use("/internal", internalRouter);
 
 if (require.main === module) {

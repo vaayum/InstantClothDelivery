@@ -6,6 +6,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import dotenv from "dotenv";
 import { requireAuth } from "@threaddash/auth";
 import authRouter from "./routes/auth";
+import addressesRouter from "./routes/addresses";
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
 app.use("/auth", authRouter);
+app.use("/api/addresses", addressesRouter);
 
 app.get("/health", (_req, res) =>
   res.json({ status: "ok", service: "api-gateway", ts: new Date().toISOString() })
@@ -29,6 +31,7 @@ app.get("/api/me", requireAuth, (req, res) => {
 
 const routes: Record<string, string> = {
   "/api/orders":        `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
+  "/api/catalog":       `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
   "/api/warehouse":     `http://localhost:${process.env.WAREHOUSE_SERVICE_PORT ?? 3002}`,
   "/api/routing":       `http://localhost:${process.env.ROUTING_SERVICE_PORT ?? 8000}`,
   "/api/notifications": `http://localhost:${process.env.NOTIFICATION_SERVICE_PORT ?? 3003}`,
