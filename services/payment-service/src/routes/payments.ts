@@ -1,7 +1,10 @@
 import { Router } from "express";
 import crypto from "crypto";
+import axios from "axios";
 import { getPrisma } from "../lib/db";
 import { getRazorpay } from "../lib/razorpay";
+
+const ORDER_URL = process.env.ORDER_SERVICE_URL ?? "http://localhost:3001";
 
 const router = Router();
 
@@ -187,6 +190,15 @@ router.post("/webhook", async (req, res) => {
       where: { razorpayOrderId },
       data: { paymentStatus: newStatus as any },
     });
+
+    if (event === "payment.failed") {
+      const order = await prisma.order.findFirst({ where: { razorpayOrderId }, select: { id: true } });
+      if (order) {
+        axios
+          .post(`${ORDER_URL}/internal/orders/${order.id}/cancel`)
+          .catch((err) => console.error(`[webhook] order cancel failed for ${order.id}:`, err?.message));
+      }
+    }
   }
 
   return res.status(200).json({ ok: true });

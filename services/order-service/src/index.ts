@@ -2,7 +2,9 @@ import express from "express";
 import dotenv from "dotenv";
 import ordersRouter from "./routes/orders";
 import trialRouter from "./routes/trial";
+import internalRouter from "./routes/internal";
 import { startSlaMonitor } from "./sla-monitor";
+import { startTrialTimeoutMonitor } from "./trial-timeout";
 
 dotenv.config();
 
@@ -16,9 +18,11 @@ app.get("/health", (_req, res) =>
 
 app.use("/", ordersRouter);
 app.use("/", trialRouter);
+app.use("/internal", internalRouter);
 
 if (require.main === module) {
   startSlaMonitor();
+  startTrialTimeoutMonitor();
   app.listen(PORT, () => console.log(`Order Service on port ${PORT}`));
 }
 

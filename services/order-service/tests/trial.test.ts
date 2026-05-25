@@ -108,7 +108,7 @@ describe("POST /:id/trial/complete", () => {
       orderItem: { update: jest.fn().mockResolvedValue({}) },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    mockAxios.post.mockResolvedValueOnce({ data: { success: true } });
+    mockAxios.post.mockResolvedValue({ data: { success: true } }); // inventory/release + capture
 
     const res = await request(app)
       .post("/order-try/trial/complete")
@@ -163,12 +163,16 @@ describe("POST /:id/trial/complete", () => {
       orderItem: { update: jest.fn().mockResolvedValue({}) },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
+    mockAxios.post.mockResolvedValue({ data: {} }); // capture call still fires
 
     await request(app)
       .post("/order-try/trial/complete")
       .send({ keptSkuIds: ["sku-os-s", "sku-jeans-32"], returnedSkuIds: [] });
 
-    expect(mockAxios.post).not.toHaveBeenCalled();
+    expect(mockAxios.post).not.toHaveBeenCalledWith(
+      expect.stringContaining("/inventory/release"),
+      expect.anything()
+    );
   });
 
   it("returns 404 when order not found", async () => {

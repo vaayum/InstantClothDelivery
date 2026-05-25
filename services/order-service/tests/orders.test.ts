@@ -60,7 +60,8 @@ function setupHappyPath() {
   mockGetRedis.mockReturnValue(mockRedis as any);
   mockAxios.post
     .mockResolvedValueOnce({ data: { warehouse_id: "wh-hsr", eta_minutes: 22 } })
-    .mockResolvedValueOnce({ data: { success: true } });
+    .mockResolvedValueOnce({ data: { success: true } })
+    .mockResolvedValue({ data: {} }); // catch-all for fire-and-forget payment call
   return mockPrisma;
 }
 
