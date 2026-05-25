@@ -30,6 +30,7 @@ app.get("/api/me", requireAuth, (req, res) => {
 });
 
 const routes: Record<string, string> = {
+  "/api/admin":         `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
   "/api/orders":        `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
   "/api/catalog":       `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
   "/api/warehouse":     `http://localhost:${process.env.WAREHOUSE_SERVICE_PORT ?? 3002}`,
