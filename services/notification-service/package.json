@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "jest --no-coverage"
+    "test": "jest --no-coverage --passWithNoTests"
   },
   "dependencies": {
     "@threaddash/shared-types": "*",
