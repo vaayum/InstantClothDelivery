@@ -138,6 +138,34 @@ router.post("/", requireAuth, async (req, res) => {
   return res.status(201).json({ ...order, estimatedMinutes: routingResult.eta_minutes });
 });
 
+router.get("/", requireAuth, async (req, res) => {
+  const userId = req.user!.userId;
+  const prisma = getPrisma();
+  const orders = await prisma.order.findMany({
+    where: { userId },
+    include: {
+      items: { include: { sku: { include: { product: true } } } },
+      address: { select: { label: true, formattedAddress: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return res.json(
+    orders.map((o) => ({
+      ...o,
+      items: o.items.map((item) => ({
+        id: item.id,
+        skuId: item.skuId,
+        productName: item.sku.product.name,
+        size: item.sku.size,
+        color: item.sku.color,
+        price: item.price,
+        quantity: item.quantity,
+        status: item.status,
+      })),
+    }))
+  );
+});
+
 router.get("/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
   const prisma = getPrisma();
@@ -155,7 +183,19 @@ router.get("/:id", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Forbidden" });
   }
 
-  return res.json(order);
+  return res.json({
+    ...order,
+    items: order.items.map((item) => ({
+      id: item.id,
+      skuId: item.skuId,
+      productName: item.sku.product.name,
+      size: item.sku.size,
+      color: item.sku.color,
+      price: item.price,
+      quantity: item.quantity,
+      status: item.status,
+    })),
+  });
 });
 
 router.patch("/:id/status", requireAuth, async (req, res) => {

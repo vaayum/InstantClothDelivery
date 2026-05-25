@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, ScrollView, Alert,
+  View, Text, TouchableOpacity, StyleSheet,
+  ActivityIndicator, FlatList, RefreshControl,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../lib/api";
 import type { Order, OrderStatus } from "../lib/types";
 
@@ -29,95 +29,119 @@ const STATUS_COLORS: Partial<Record<OrderStatus, string>> = {
   ARRIVED: "#f59e0b",
 };
 
+function OrderCard({ order }: { order: Order }) {
+  const color = STATUS_COLORS[order.status] ?? "#aaa";
+  const total = ((order.totalAmount + order.deliveryFee) / 100).toFixed(0);
+  const preview = order.items
+    .slice(0, 2)
+    .map((i) => i.productName)
+    .join(", ");
+  const extra = order.items.length > 2 ? ` +${order.items.length - 2} more` : "";
+  const date = new Date(order.createdAt).toLocaleDateString("en-IN", {
+    day: "numeric", month: "short",
+  });
+
+  return (
+    <TouchableOpacity style={s.card} onPress={() => router.push(`/order/${order.id}`)}>
+      <View style={s.cardHeader}>
+        <Text style={s.orderId}>#{order.id.slice(-8).toUpperCase()}</Text>
+        <Text style={s.date}>{date}</Text>
+      </View>
+      <Text style={[s.status, { color }]}>{STATUS_LABELS[order.status]}</Text>
+      <Text style={s.items} numberOfLines={1}>
+        {preview}{extra}
+      </Text>
+      <View style={s.cardFooter}>
+        <Text style={s.amount}>₹{total}</Text>
+        {order.isTryOrder && <Text style={s.tryBadge}>Try &amp; Keep</Text>}
+        <Text style={s.arrow}>→</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export default function OrdersScreen() {
-  const [orderId, setOrderId] = useState("");
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    AsyncStorage.getItem("last_order_id").then((id) => {
-      if (id) { setOrderId(id); fetchOrder(id); }
-    });
-  }, []);
-
-  async function fetchOrder(id: string) {
-    if (!id.trim()) return;
-    setLoading(true);
+  const fetchOrders = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
     try {
-      const res = await api.get<Order>(`/api/orders/${id.trim()}`);
-      setOrder(res.data);
-      await AsyncStorage.setItem("last_order_id", id.trim());
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } }).response?.status;
-      if (status === 404) Alert.alert("Not found", "No order with that ID.");
-      else Alert.alert("Error", "Could not fetch order.");
+      const res = await api.get<Order[]>("/api/orders");
+      setOrders(res.data);
+    } catch {
+      setError("Could not load orders. Pull down to retry.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [fetchOrders])
+  );
+
+  function onRefresh() {
+    setRefreshing(true);
+    fetchOrders(true);
+  }
+
+  if (loading) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator color="#fff" size="large" />
+      </View>
+    );
   }
 
   return (
-    <ScrollView style={s.scroll} contentContainerStyle={s.content}>
-      <Text style={s.heading}>My Orders</Text>
-
-      <View style={s.searchRow}>
-        <TextInput
-          style={s.input}
-          placeholder="Paste order ID..."
-          placeholderTextColor="#555"
-          value={orderId}
-          onChangeText={setOrderId}
-          autoCapitalize="none"
-        />
-        <TouchableOpacity style={s.goBtn} onPress={() => fetchOrder(orderId)} disabled={loading}>
-          <Text style={s.goBtnText}>Track</Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading && <ActivityIndicator color="#fff" style={{ marginTop: 24 }} />}
-
-      {order && (
-        <TouchableOpacity style={s.card} onPress={() => router.push(`/order/${order.id}`)}>
-          <Text style={s.cardLabel}>Order</Text>
-          <Text style={s.orderId}>#{order.id.slice(-8).toUpperCase()}</Text>
-          <View style={s.statusRow}>
-            <Text style={[s.status, { color: STATUS_COLORS[order.status] ?? "#aaa" }]}>
-              {STATUS_LABELS[order.status]}
-            </Text>
-          </View>
-          <Text style={s.amount}>
-            ₹{((order.totalAmount + order.deliveryFee) / 100).toFixed(0)} · {order.items.length} item(s)
-          </Text>
-          {order.isTryOrder && <Text style={s.tryNote}>Try Before You Keep</Text>}
-          <Text style={s.tap}>Tap for live tracking →</Text>
-        </TouchableOpacity>
-      )}
-
-      {!order && !loading && (
-        <Text style={s.empty}>Enter an order ID above to track your delivery.</Text>
-      )}
-    </ScrollView>
+    <FlatList
+      style={s.list}
+      contentContainerStyle={orders.length === 0 ? s.emptyContainer : s.listContent}
+      data={orders}
+      keyExtractor={(o) => o.id}
+      renderItem={({ item }) => <OrderCard order={item} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
+      }
+      ListHeaderComponent={<Text style={s.heading}>My Orders</Text>}
+      ListEmptyComponent={
+        error ? (
+          <Text style={s.empty}>{error}</Text>
+        ) : (
+          <Text style={s.empty}>No orders yet. Place your first order!</Text>
+        )
+      }
+      ItemSeparatorComponent={() => <View style={s.separator} />}
+    />
   );
 }
 
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#0a0a0a" },
-  content: { padding: 20 },
+  list: { flex: 1, backgroundColor: "#0a0a0a" },
+  listContent: { padding: 20, paddingBottom: 40 },
+  emptyContainer: { flex: 1, padding: 20 },
+  center: { flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" },
   heading: { fontSize: 28, fontWeight: "bold", color: "#fff", marginBottom: 20 },
-  searchRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
-  input: {
-    flex: 1, backgroundColor: "#1a1a1a", color: "#fff",
-    borderRadius: 10, padding: 14, fontSize: 14,
+  card: { backgroundColor: "#1a1a1a", borderRadius: 12, padding: 16 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+  orderId: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  date: { color: "#555", fontSize: 13 },
+  status: { fontSize: 14, fontWeight: "600", marginBottom: 4 },
+  items: { color: "#888", fontSize: 13, marginBottom: 10 },
+  cardFooter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  amount: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  tryBadge: {
+    backgroundColor: "#4c1d95", color: "#a78bfa",
+    fontSize: 11, fontWeight: "600",
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6,
   },
-  goBtn: { backgroundColor: "#fff", borderRadius: 10, paddingHorizontal: 20, justifyContent: "center" },
-  goBtnText: { color: "#000", fontWeight: "bold" },
-  card: { backgroundColor: "#1a1a1a", borderRadius: 12, padding: 20 },
-  cardLabel: { color: "#666", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 },
-  orderId: { color: "#fff", fontSize: 22, fontWeight: "bold", marginBottom: 8 },
-  statusRow: { marginBottom: 8 },
-  status: { fontSize: 15, fontWeight: "600" },
-  amount: { color: "#aaa", fontSize: 14, marginBottom: 4 },
-  tryNote: { color: "#7c3aed", fontSize: 13, marginBottom: 4 },
-  tap: { color: "#3b82f6", fontSize: 13, marginTop: 8 },
-  empty: { color: "#555", textAlign: "center", marginTop: 48, fontSize: 15 },
+  arrow: { color: "#3b82f6", marginLeft: "auto" },
+  separator: { height: 12 },
+  empty: { color: "#555", textAlign: "center", marginTop: 60, fontSize: 15, lineHeight: 22 },
 });
