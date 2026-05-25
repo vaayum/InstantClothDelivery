@@ -1,10 +1,11 @@
 import { Router } from "express";
+import { requireAuth } from "@threaddash/auth";
 import { getPrisma } from "../lib/db";
 
 const router = Router();
 
 // GET /api/admin/orders?status=PENDING&limit=50&offset=0
-router.get("/api/admin/orders", async (req, res): Promise<void> => {
+router.get("/api/admin/orders", requireAuth, async (req, res): Promise<void> => {
   const { status, limit = "50", offset = "0" } = req.query as Record<string, string>;
   const orders = await getPrisma().order.findMany({
     where: status ? { status: status as any } : undefined,
@@ -23,7 +24,7 @@ router.get("/api/admin/orders", async (req, res): Promise<void> => {
 });
 
 // GET /api/admin/stats
-router.get("/api/admin/stats", async (_req, res): Promise<void> => {
+router.get("/api/admin/stats", requireAuth, async (_req, res): Promise<void> => {
   const prisma = getPrisma();
   const [statusCounts, agentCounts, todayRevenue, activePickingTasks] = await Promise.all([
     prisma.order.groupBy({ by: ["status"], _count: { id: true } }),
@@ -53,7 +54,7 @@ router.get("/api/admin/stats", async (_req, res): Promise<void> => {
 });
 
 // GET /api/admin/agents
-router.get("/api/admin/agents", async (_req, res): Promise<void> => {
+router.get("/api/admin/agents", requireAuth, async (_req, res): Promise<void> => {
   const agents = await getPrisma().agent.findMany({
     include: {
       assignments: {
@@ -68,7 +69,7 @@ router.get("/api/admin/agents", async (_req, res): Promise<void> => {
 });
 
 // GET /api/admin/warehouse
-router.get("/api/admin/warehouse", async (_req, res): Promise<void> => {
+router.get("/api/admin/warehouse", requireAuth, async (_req, res): Promise<void> => {
   const warehouses = await getPrisma().warehouse.findMany({
     include: {
       inventory: {

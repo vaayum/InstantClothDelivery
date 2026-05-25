@@ -3,6 +3,12 @@ import axios from "axios";
 
 const api = axios.create({ baseURL: "http://localhost:3000" });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("admin_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = "overview" | "orders" | "agents" | "warehouse";
@@ -101,6 +107,54 @@ function StatusBadge({ status }: { status: string }) {
     }}>
       {status.replace(/_/g, " ")}
     </span>
+  );
+}
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+
+function LoginView({ onLogin }: { onLogin: () => void }) {
+  const [secret, setSecret] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.post<{ token: string }>("/auth/admin-login", { secret });
+      localStorage.setItem("admin_token", res.data.token);
+      onLogin();
+    } catch {
+      setError("Invalid secret");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", backgroundColor: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "system-ui, sans-serif" }}>
+      <form onSubmit={handleSubmit} style={{ backgroundColor: "#111", border: "1px solid #222", borderRadius: 16, padding: 40, width: 360, display: "flex", flexDirection: "column", gap: 20 }}>
+        <div>
+          <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: 0 }}>ThreadDash</h1>
+          <p style={{ color: "#555", fontSize: 14, margin: "6px 0 0" }}>Admin access</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <label style={{ color: "#888", fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>Admin Secret</label>
+          <input
+            type="password"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            autoFocus
+            style={{ backgroundColor: "#1a1a1a", border: "1px solid #333", borderRadius: 8, padding: "10px 14px", color: "#fff", fontSize: 14, outline: "none" }}
+          />
+        </div>
+        {error && <p style={{ color: "#ef4444", fontSize: 13, margin: 0 }}>{error}</p>}
+        <button type="submit" disabled={loading || !secret} style={{ backgroundColor: "#fff", color: "#0a0a0a", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+          {loading ? "Verifying…" : "Sign in"}
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -410,6 +464,11 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("overview");
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem("admin_token"));
+
+  if (!authed) {
+    return <LoginView onLogin={() => setAuthed(true)} />;
+  }
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#0a0a0a", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
@@ -418,7 +477,7 @@ export default function App() {
         <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, padding: "16px 0", color: "#fff" }}>
           ThreadDash <span style={{ color: "#888", fontWeight: 400 }}>Admin</span>
         </h1>
-        <nav style={{ display: "flex", gap: 4 }}>
+        <nav style={{ display: "flex", gap: 4, flex: 1 }}>
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -439,6 +498,12 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <button
+          onClick={() => { localStorage.removeItem("admin_token"); setAuthed(false); }}
+          style={{ background: "none", border: "1px solid #333", color: "#666", borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontSize: 13 }}
+        >
+          Logout
+        </button>
       </div>
 
       {/* Content */}

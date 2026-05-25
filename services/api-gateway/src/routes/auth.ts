@@ -47,6 +47,17 @@ router.post("/verify-otp", async (req, res): Promise<void> => {
   res.json({ token, user: { id: user.id, role: user.role, phone: user.phone } });
 });
 
+router.post("/admin-login", async (req, res): Promise<void> => {
+  const { secret } = req.body as { secret?: string };
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (!adminSecret || !secret || secret !== adminSecret) {
+    res.status(401).json({ error: "Invalid admin secret" });
+    return;
+  }
+  const token = signJwt({ userId: "admin", role: "ADMIN", phone: "" });
+  res.json({ token });
+});
+
 router.patch("/fcm-token", requireAuth, async (req, res): Promise<void> => {
   const { token } = req.body as { token?: string };
   if (!token) { res.status(400).json({ error: "token required" }); return; }
