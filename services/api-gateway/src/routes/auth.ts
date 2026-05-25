@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
-import { signJwt } from "@threaddash/auth";
+import { signJwt, requireAuth } from "@threaddash/auth";
 import { getRedis } from "../lib/redis";
 import { sendSms } from "../lib/twilio";
 
@@ -45,6 +45,13 @@ router.post("/verify-otp", async (req, res): Promise<void> => {
 
   const token = signJwt({ userId: user.id, role: user.role, phone: user.phone });
   res.json({ token, user: { id: user.id, role: user.role, phone: user.phone } });
+});
+
+router.patch("/fcm-token", requireAuth, async (req, res): Promise<void> => {
+  const { token } = req.body as { token?: string };
+  if (!token) { res.status(400).json({ error: "token required" }); return; }
+  await prisma.user.update({ where: { id: req.user!.userId }, data: { fcmToken: token } });
+  res.json({ success: true });
 });
 
 export default router;
