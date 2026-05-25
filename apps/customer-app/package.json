@@ -4,7 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "expo start",
+    "dev": "expo start --tunnel",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit"
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
+    "@expo/ngrok": "^4.1.0",
     "@types/react": "~18.2.0",
     "typescript": "^5.4.0"
   }
