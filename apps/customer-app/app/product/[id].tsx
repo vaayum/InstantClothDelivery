@@ -4,7 +4,6 @@ import {
   ActivityIndicator, ScrollView, Alert, Switch,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, clearSession } from "../lib/api";
 import type { Product, Sku, Address, PaymentMethod } from "../lib/types";
 
@@ -67,9 +66,7 @@ export default function ProductScreen() {
         paymentMethod,
         isTryOrder,
       });
-      const orderId = res.data.id;
-      await AsyncStorage.setItem("last_order_id", orderId);
-      router.replace(`/order/${orderId}`);
+      router.replace(`/order/${res.data.id}`);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 409) Alert.alert("Out of stock", "This item is not available right now.");

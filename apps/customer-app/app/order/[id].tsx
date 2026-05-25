@@ -47,18 +47,21 @@ export default function OrderTrackingScreen() {
   const { id: orderId } = useLocalSearchParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
   const { status: socketStatus, agentLocation, trialSecondsRemaining } = useOrderSocket(orderId ?? null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const res = await api.get<Order>(`/api/orders/${orderId}`);
       setOrder(res.data);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) { await clearSession(); router.replace("/login"); }
+      else setError(true);
     } finally {
       setLoading(false);
     }
@@ -97,7 +100,16 @@ export default function OrderTrackingScreen() {
     return <View style={s.center}><ActivityIndicator size="large" color="#fff" /></View>;
   }
   if (!order) {
-    return <View style={s.center}><Text style={s.errorText}>Order not found.</Text></View>;
+    return (
+      <View style={s.center}>
+        <Text style={s.errorText}>{error ? "Could not load order." : "Order not found."}</Text>
+        {error && (
+          <TouchableOpacity style={s.retryBtn} onPress={load}>
+            <Text style={s.retryText}>Retry</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   }
 
   const currentStatus = socketStatus ?? order.status;
@@ -249,5 +261,7 @@ const s = StyleSheet.create({
   tryNote: { color: "#7c3aed", fontSize: 12, marginTop: 4 },
   cancelBtn: { borderWidth: 1, borderColor: "#ef4444", borderRadius: 12, padding: 16, alignItems: "center" },
   cancelBtnText: { color: "#ef4444", fontWeight: "600", fontSize: 15 },
-  errorText: { color: "#ef4444", fontSize: 16 },
+  errorText: { color: "#ef4444", fontSize: 16, marginBottom: 16 },
+  retryBtn: { borderWidth: 1, borderColor: "#555", borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
+  retryText: { color: "#ccc", fontSize: 15 },
 });

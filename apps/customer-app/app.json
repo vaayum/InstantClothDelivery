@@ -7,6 +7,6 @@
     "scheme": "threaddash",
     "android": { "package": "in.threaddash.customer" },
     "ios": { "bundleIdentifier": "in.threaddash.customer", "supportsTablet": false },
-    "plugins": ["expo-router"]
+    "plugins": ["expo-router", "expo-notifications"]
   }
 }

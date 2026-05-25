@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import type { OrderStatus, AgentLocation } from "../lib/types";
+import { getToken } from "../lib/api";
 
-const REALTIME_URL = "http://localhost:3005";
+const REALTIME_URL = process.env.EXPO_PUBLIC_REALTIME_URL ?? "http://localhost:3005";
 
 interface SocketState {
   status: OrderStatus | null;
@@ -20,34 +21,47 @@ export function useOrderSocket(orderId: string | null): SocketState {
 
   useEffect(() => {
     if (!orderId) return;
+    let cancelled = false;
 
-    const socket = io(REALTIME_URL, { transports: ["websocket"] });
-    socketRef.current = socket;
+    getToken().then((token) => {
+      if (cancelled) return;
 
-    socket.on("connect", () => {
-      socket.emit("subscribe:order", orderId);
-    });
+      const socket = io(REALTIME_URL, {
+        transports: ["websocket"],
+        auth: { token },
+      });
+      socketRef.current = socket;
 
-    socket.on("order:status", (payload: { orderId: string; status: OrderStatus }) => {
-      if (payload.orderId === orderId) {
-        setState((prev) => ({ ...prev, status: payload.status }));
-      }
-    });
+      socket.on("connect", () => {
+        socket.emit("subscribe:order", orderId);
+      });
 
-    socket.on("agent:location", (payload: AgentLocation) => {
-      if (payload.orderId === orderId) {
-        setState((prev) => ({ ...prev, agentLocation: payload }));
-      }
-    });
+      socket.on("connect_error", () => {
+        // socket.io retries automatically; state stays at last known values
+      });
 
-    socket.on("trial:timer", (payload: { orderId: string; secondsRemaining: number }) => {
-      if (payload.orderId === orderId) {
-        setState((prev) => ({ ...prev, trialSecondsRemaining: payload.secondsRemaining }));
-      }
+      socket.on("order:status", (payload: { orderId: string; status: OrderStatus }) => {
+        if (payload.orderId === orderId) {
+          setState((prev) => ({ ...prev, status: payload.status }));
+        }
+      });
+
+      socket.on("agent:location", (payload: AgentLocation) => {
+        if (payload.orderId === orderId) {
+          setState((prev) => ({ ...prev, agentLocation: payload }));
+        }
+      });
+
+      socket.on("trial:timer", (payload: { orderId: string; secondsRemaining: number }) => {
+        if (payload.orderId === orderId) {
+          setState((prev) => ({ ...prev, trialSecondsRemaining: payload.secondsRemaining }));
+        }
+      });
     });
 
     return () => {
-      socket.disconnect();
+      cancelled = true;
+      socketRef.current?.disconnect();
       socketRef.current = null;
     };
   }, [orderId]);

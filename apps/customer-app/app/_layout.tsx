@@ -1,14 +1,25 @@
-import { useEffect } from "react";
-import { Stack } from "expo-router";
-import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
+import { View, ActivityIndicator } from "react-native";
+import { Stack, router } from "expo-router";
+import { getToken } from "./lib/api";
 
 export default function RootLayout() {
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    AsyncStorage.getItem("customer_token").then((token) => {
+    getToken().then((token) => {
       if (!token) router.replace("/login");
+      setReady(true);
     });
   }, []);
+
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
 
   return (
     <Stack>

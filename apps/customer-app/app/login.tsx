@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { api, saveSession } from "./lib/api";
+import { getExpoPushToken } from "./lib/notifications";
 
 export default function LoginScreen() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
@@ -11,7 +13,8 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
 
   async function sendOtp() {
-    if (!phone.trim()) return;
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) { setError("Enter a valid phone number."); return; }
     setLoading(true);
     setError("");
     try {
@@ -34,7 +37,10 @@ export default function LoginScreen() {
         otp,
       });
       await saveSession(res.data.token, res.data.user.id);
-      api.patch("/auth/fcm-token", { token: "placeholder-fcm" }).catch(() => {});
+      await AsyncStorage.setItem("customer_phone", phone.trim());
+      getExpoPushToken().then((pushToken) => {
+        if (pushToken) api.patch("/auth/fcm-token", { token: pushToken }).catch(() => {});
+      });
       router.replace("/(tabs)");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;

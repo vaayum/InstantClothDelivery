@@ -12,15 +12,18 @@ export default function HomeScreen() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
+    setError(false);
     try {
       const res = await api.get<Product[]>("/api/catalog");
       setProducts(res.data);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) { await clearSession(); router.replace("/login"); }
+      else setError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -55,7 +58,11 @@ export default function HomeScreen() {
         columnWrapperStyle={s.row}
         contentContainerStyle={s.grid}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#fff" />}
-        ListEmptyComponent={<Text style={s.empty}>No products found.</Text>}
+        ListEmptyComponent={
+          error
+            ? <Text style={s.empty}>Could not load products. Pull down to retry.</Text>
+            : <Text style={s.empty}>No products found.</Text>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity style={s.card} onPress={() => router.push(`/product/${item.id}`)}>
             <View style={s.imgPlaceholder}>
