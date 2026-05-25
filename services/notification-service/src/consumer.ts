@@ -84,6 +84,12 @@ export async function handleEvent(routingKey: string, payload: unknown): Promise
     } else if (status === "COMPLETED") {
       await pushAgent(agentId, "Delivery complete", "Great work! Delivery marked complete.", { orderId });
     }
+  } else if (routingKey === "assignment.no_agent_available") {
+    const orderId = p.orderId as string;
+    console.error(
+      `[notification] NO AGENT AVAILABLE — orderId=${orderId} at ${new Date().toISOString()}`
+    );
+    // TODO: replace with admin push/SMS once admin FCM token is stored
   } else if (routingKey === "order.absent_threshold_reached") {
     const customerId = p.customerId as string;
     const orderId = p.orderId as string;
