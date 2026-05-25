@@ -1,6 +1,9 @@
+import axios from "axios";
 import { OrderStatus } from "@prisma/client";
 import { getPrisma } from "./lib/db";
 import { publishEvent } from "./lib/rabbitmq";
+
+const REALTIME_URL = process.env.REALTIME_SERVICE_URL ?? "http://localhost:3005";
 
 export const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING:              ["WAREHOUSE_PROCESSING", "CANCELLED"],
@@ -43,6 +46,8 @@ export async function transitionOrder(
     actor,
     timestamp: new Date().toISOString(),
   });
+
+  axios.post(`${REALTIME_URL}/emit/order-status`, { orderId, status: newStatus }).catch(() => {});
 
   return updated;
 }

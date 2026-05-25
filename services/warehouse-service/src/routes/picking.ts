@@ -51,6 +51,14 @@ router.post("/:orderId/pick-item", requireAuth, requireWarehouseStaff, async (re
     }
   });
 
+  if (task.status === "PENDING") {
+    try {
+      await axios.patch(`${ORDER_SERVICE_URL}/${orderId}/status`, { status: "WAREHOUSE_PROCESSING" });
+    } catch {
+      // non-fatal — order may already be in WAREHOUSE_PROCESSING
+    }
+  }
+
   return res.json({ success: true });
 });
 
