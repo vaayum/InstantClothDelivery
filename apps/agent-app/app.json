@@ -5,13 +5,28 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "threaddash-agent",
-    "android": { "package": "in.threaddash.agent" },
-    "ios": { "bundleIdentifier": "in.threaddash.agent" },
+    "android": {
+      "package": "in.threaddash.agent"
+    },
+    "ios": {
+      "bundleIdentifier": "in.threaddash.agent"
+    },
     "plugins": [
       "expo-router",
-      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "ThreadDash needs location for delivery assignments." }],
-      ["expo-camera", { "cameraPermission": "ThreadDash needs camera for barcode scanning." }],
-      "expo-notifications"
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ThreadDash needs location for delivery assignments."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ThreadDash needs camera for barcode scanning."
+        }
+      ],
+      "expo-notifications",
+      "expo-font"
     ]
   }
 }

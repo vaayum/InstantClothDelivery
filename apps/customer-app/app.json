@@ -5,8 +5,17 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "threaddash",
-    "android": { "package": "in.threaddash.customer" },
-    "ios": { "bundleIdentifier": "in.threaddash.customer", "supportsTablet": false },
-    "plugins": ["expo-router", "expo-notifications"]
+    "android": {
+      "package": "in.threaddash.customer"
+    },
+    "ios": {
+      "bundleIdentifier": "in.threaddash.customer",
+      "supportsTablet": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      "expo-font"
+    ]
   }
 }
