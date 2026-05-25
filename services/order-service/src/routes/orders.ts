@@ -10,6 +10,7 @@ const router = Router();
 
 const ROUTING_URL = process.env.ROUTING_SERVICE_URL ?? "http://localhost:8000";
 const WAREHOUSE_URL = process.env.WAREHOUSE_SERVICE_URL ?? "http://localhost:3002";
+const PAYMENT_URL = process.env.PAYMENT_SERVICE_URL ?? "http://localhost:3004";
 
 router.post("/", requireAuth, async (req, res) => {
   const userId = req.user!.userId;
@@ -110,6 +111,13 @@ router.post("/", requireAuth, async (req, res) => {
     await axios.post(`${WAREHOUSE_URL}/inventory/release`, { items: reserveItems }).catch(() => {});
     return res.status(500).json({ error: "Order creation failed" });
   }
+
+  axios
+    .post(`${PAYMENT_URL}/payments/create-order`, {
+      orderId: order.id,
+      amount: totalAmount + deliveryFee,
+    })
+    .catch((err) => console.error("[orders] payment create-order failed:", err?.message));
 
   await prisma.warehouse.update({
     where: { id: routingResult.warehouse_id },

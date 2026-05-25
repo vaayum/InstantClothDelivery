@@ -8,6 +8,7 @@ import { transitionOrder } from "../transitions";
 
 const router = Router();
 const WAREHOUSE_URL = process.env.WAREHOUSE_SERVICE_URL ?? "http://localhost:3002";
+const PAYMENT_URL = process.env.PAYMENT_SERVICE_URL ?? "http://localhost:3004";
 
 router.post("/:id/trial/start", requireAuth, async (req, res) => {
   const { id } = req.params;
@@ -70,6 +71,24 @@ router.post("/:id/trial/complete", requireAuth, async (req, res) => {
     }
 
     await transitionOrder(id, "COMPLETED", req.user!.userId);
+
+    const keptAmount = order.items
+      .filter((i) => keptSkuIds.includes(i.skuId))
+      .reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const returnedAmount = order.items
+      .filter((i) => returnedSkuIds.includes(i.skuId))
+      .reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+    if (keptAmount > 0) {
+      axios
+        .post(`${PAYMENT_URL}/payments/capture`, { orderId: id, amount: keptAmount })
+        .catch((err) => console.error("[trial] payment capture failed:", err?.message));
+    }
+    if (returnedAmount > 0) {
+      axios
+        .post(`${PAYMENT_URL}/payments/refund`, { orderId: id, amount: returnedAmount })
+        .catch((err) => console.error("[trial] payment refund failed:", err?.message));
+    }
 
     await publishEvent("order.completed", {
       orderId: id,
