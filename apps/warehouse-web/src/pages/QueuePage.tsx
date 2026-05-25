@@ -3,6 +3,7 @@ import { api, getWarehouseId, clearSession, PickingTask } from "../api";
 
 interface Props {
   onSelectTask: (task: PickingTask) => void;
+  onReturns: () => void;
   onLogout: () => void;
 }
 
@@ -25,7 +26,7 @@ const STATUS_BADGE: Record<string, React.CSSProperties> = {
   PACKED:      { background: "#dcfce7", color: "#166534" },
 };
 
-export default function QueuePage({ onSelectTask, onLogout }: Props) {
+export default function QueuePage({ onSelectTask, onReturns, onLogout }: Props) {
   const [tasks, setTasks] = useState<PickingTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -54,7 +55,10 @@ export default function QueuePage({ onSelectTask, onLogout }: Props) {
     <div style={s.page}>
       <div style={s.header}>
         <span style={s.brand}>ThreadDash Warehouse</span>
-        <button style={s.logoutBtn} onClick={() => { clearSession(); onLogout(); }}>Logout</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button style={s.logoutBtn} onClick={onReturns}>Returns</button>
+          <button style={s.logoutBtn} onClick={() => { clearSession(); onLogout(); }}>Logout</button>
+        </div>
       </div>
 
       <div style={s.body}>
