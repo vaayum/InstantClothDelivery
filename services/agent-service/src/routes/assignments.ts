@@ -160,6 +160,9 @@ router.post("/:orderId/deliver", requireAuth, requireAgent, async (req, res) => 
     return res.status(502).json({ error: "Order service unreachable" });
   }
 
+  // Fire-and-forget — record-cod 409s silently for non-COD orders
+  axios.post(`${PAYMENT_SERVICE_URL}/payments/record-cod`, { orderId }).catch(() => {});
+
   return res.json({ success: true });
 });
 

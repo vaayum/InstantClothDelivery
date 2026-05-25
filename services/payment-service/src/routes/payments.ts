@@ -151,6 +151,27 @@ router.post("/charge-noshow", async (req, res) => {
   }
 });
 
+// POST /payments/record-cod
+// Called by agent-service on delivery of a COD order — no Razorpay involved
+router.post("/record-cod", async (req, res) => {
+  const { orderId } = req.body as { orderId: string };
+  if (!orderId) return res.status(400).json({ error: "orderId required" });
+
+  const prisma = getPrisma();
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return res.status(404).json({ error: "Order not found" });
+  if (order.paymentMethod !== "COD") {
+    return res.status(409).json({ error: "Order is not COD" });
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { paymentStatus: "CAPTURED" },
+  });
+
+  return res.json({ success: true });
+});
+
 // POST /payments/webhook
 // Razorpay webhook — verifies HMAC signature, updates paymentStatus on Order
 router.post("/webhook", async (req, res) => {
