@@ -24,9 +24,18 @@ interface RoutingCandidate {
   score: number;
 }
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function handleOrderPlaced(payload: OrderPlacedPayload): Promise<void> {
   const { orderId } = payload;
   const prisma = getPrisma();
+
+  // Step through warehouse states so the customer tracking screen
+  // shows intermediate progress before agent assignment.
+  await axios.patch(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/status`, { status: "WAREHOUSE_PROCESSING" });
+  await delay(3000);
+  await axios.patch(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/status`, { status: "READY_FOR_PICKUP" });
+  await delay(2000);
 
   const order = await prisma.order.findUniqueOrThrow({
     where: { id: orderId },
