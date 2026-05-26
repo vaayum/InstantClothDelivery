@@ -159,8 +159,9 @@ export default function OrderTrackingScreen() {
       {!isCancelled && (
         <View style={s.timeline}>
           {TIMELINE.filter((s) => !(s === "TRIAL_IN_PROGRESS" && !order.isTryOrder)).map((step, idx) => {
-            const done = idx < currentIdx;
-            const active = idx === currentIdx;
+            const isCompleted = currentStatus === "COMPLETED";
+            const done = isCompleted ? idx <= currentIdx : idx < currentIdx;
+            const active = !isCompleted && idx === currentIdx;
             return (
               <View key={step} style={s.timelineRow}>
                 <View style={s.timelineLeft}>

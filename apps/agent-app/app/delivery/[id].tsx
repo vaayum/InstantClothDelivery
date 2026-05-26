@@ -153,17 +153,19 @@ export default function DeliveryScreen() {
       }
 
       if (oStatus === "TRIAL_IN_PROGRESS") {
+        const trialDone = a.order?.items?.every(
+          (i) => i.status === "KEPT" || i.status === "RETURNED"
+        );
+        if (trialDone) {
+          return (
+            <TouchableOpacity style={s.primaryBtn} onPress={handleDeliver} disabled={actionLoading}>
+              <Text style={s.btnText}>Mark Delivered</Text>
+            </TouchableOpacity>
+          );
+        }
         return (
           <TouchableOpacity style={[s.primaryBtn, { backgroundColor: "#8b5cf6" }]} onPress={() => router.push(`/trial/${orderId}`)}>
             <Text style={s.btnText}>View Trial Items</Text>
-          </TouchableOpacity>
-        );
-      }
-
-      if (oStatus === "COMPLETED") {
-        return (
-          <TouchableOpacity style={s.primaryBtn} onPress={handleDeliver} disabled={actionLoading}>
-            <Text style={s.btnText}>Mark Delivered</Text>
           </TouchableOpacity>
         );
       }

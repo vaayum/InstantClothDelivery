@@ -129,7 +129,8 @@ describe("POST /:id/trial/complete", () => {
         items: [{ skuId: "sku-jeans-32", warehouseId: "wh-hsr", quantity: 1 }],
       })
     );
-    expect(transitionOrder).toHaveBeenCalledWith("order-try", "COMPLETED", "user-1");
+    // Order stays TRIAL_IN_PROGRESS here; COMPLETED is set when agent calls /deliver
+    expect(transitionOrder).not.toHaveBeenCalledWith("order-try", "COMPLETED", expect.anything());
   });
 
   it("publishes order.completed event", async () => {

@@ -70,7 +70,8 @@ router.post("/:id/trial/complete", requireAuth, async (req, res) => {
       await axios.post(`${WAREHOUSE_URL}/inventory/release`, { items: releaseItems });
     }
 
-    await transitionOrder(id, "COMPLETED", req.user!.userId);
+    // Order transitions TRIAL_IN_PROGRESS → COMPLETED when agent calls /deliver,
+    // not here — so the customer timeline stays "in progress" until physical handoff.
 
     const keptAmount = order.items
       .filter((i) => keptSkuIds.includes(i.skuId))
