@@ -74,6 +74,14 @@ export default function OrderTrackingScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Poll every 10s while the order is not in a terminal state
+  useEffect(() => {
+    const TERMINAL: OrderStatus[] = ["DELIVERED", "PARTIALLY_DELIVERED", "RETURNED", "CANCELLED", "COMPLETED"];
+    if (!order || TERMINAL.includes(order.status)) return;
+    const id = setInterval(load, 10_000);
+    return () => clearInterval(id);
+  }, [order?.status, load]);
+
   // Merge socket status into order state
   useEffect(() => {
     if (socketStatus && order && socketStatus !== order.status) {
