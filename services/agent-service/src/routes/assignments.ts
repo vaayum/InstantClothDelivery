@@ -83,7 +83,10 @@ router.post("/:orderId/decline", requireAuth, requireAgent, async (req, res) => 
   const prisma = getPrisma();
 
   try {
-    const assignment = await prisma.deliveryAssignment.findUnique({ where: { orderId } });
+    const assignment = await prisma.deliveryAssignment.findUnique({
+      where: { orderId },
+      include: { order: { select: { warehouseId: true, userId: true, isTryOrder: true } } },
+    });
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found" });
     }
@@ -95,11 +98,14 @@ router.post("/:orderId/decline", requireAuth, requireAgent, async (req, res) => 
       data: { status: "AVAILABLE" },
     });
 
-    await publishEvent("order.status_changed", {
+    // Re-publish order.placed so the auto-dispatch consumer assigns a new agent.
+    // consumer.ts skips warehouse simulation when order is already past PENDING.
+    await publishEvent("order.placed", {
       orderId,
-      from: "AGENT_ASSIGNED",
-      to: "READY_FOR_PICKUP",
-      actor: "system",
+      warehouseId: assignment.order.warehouseId,
+      userId: assignment.order.userId,
+      customerId: assignment.order.userId,
+      isTryOrder: assignment.order.isTryOrder,
       timestamp: new Date().toISOString(),
     });
 
@@ -234,6 +240,12 @@ router.post("/:orderId/absent", requireAuth, requireAgent, async (req, res) => {
       } catch (err) {
         console.error("POST /assignments/:orderId/absent payment charge error (non-fatal)", err);
       }
+
+      // Reset agent to AVAILABLE so they can receive new assignments.
+      await prisma.agent.update({
+        where: { id: existing.agentId },
+        data: { status: "AVAILABLE" },
+      }).catch((err) => console.error("POST /assignments/:orderId/absent agent reset error (non-fatal)", err));
     }
 
     return res.json({ absentAttempts: newCount, absent: isAbsent });

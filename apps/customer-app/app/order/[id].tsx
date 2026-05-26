@@ -35,6 +35,10 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 
 function TrialCountdown({ seconds: initialSeconds }: { seconds: number }) {
   const [seconds, setSeconds] = useState(initialSeconds);
+  // Resync from server broadcast when it diverges by more than 5s
+  useEffect(() => {
+    setSeconds((local) => Math.abs(initialSeconds - local) > 5 ? initialSeconds : local);
+  }, [initialSeconds]);
   useEffect(() => {
     const t = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);

@@ -44,6 +44,7 @@ export async function transitionOrder(
 
   await publishEvent("order.status_changed", {
     orderId,
+    customerId: order.userId,
     from: order.status,
     to: newStatus,
     actor,
