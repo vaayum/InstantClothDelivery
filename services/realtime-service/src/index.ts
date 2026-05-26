@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import amqp from "amqplib";
 import dotenv from "dotenv";
 import type { AgentLocationUpdate, OrderStatusUpdate, TrialTimerUpdate } from "@threaddash/shared-types";
 
@@ -38,4 +39,35 @@ app.post("/emit/trial-timer", (req, res) => {
   res.json({ ok: true });
 });
 
-httpServer.listen(PORT, () => console.log(`Realtime Service on port ${PORT}`));
+async function startRabbitMQConsumer() {
+  const EXCHANGE = "threaddash";
+  const RABBITMQ_URL = process.env.RABBITMQ_URL ?? "amqp://guest:guest@localhost:5672";
+
+  const conn = await amqp.connect(RABBITMQ_URL);
+  const ch = await conn.createChannel();
+  await ch.assertExchange(EXCHANGE, "topic", { durable: true });
+
+  const statusQ = await ch.assertQueue("realtime.order.status_changed", { durable: true });
+  await ch.bindQueue(statusQ.queue, EXCHANGE, "order.status_changed");
+  ch.consume(statusQ.queue, (msg) => {
+    if (!msg) return;
+    try {
+      const payload = JSON.parse(msg.content.toString()) as { orderId: string; to: string; timestamp: string };
+      io.to(`order:${payload.orderId}`).emit("order:status", {
+        orderId: payload.orderId,
+        status: payload.to,
+        timestamp: payload.timestamp,
+      });
+      ch.ack(msg);
+    } catch {
+      ch.nack(msg, false, false);
+    }
+  });
+
+  console.log("[realtime] Consuming order.status_changed");
+}
+
+httpServer.listen(PORT, () => {
+  console.log(`Realtime Service on port ${PORT}`);
+  startRabbitMQConsumer().catch((err) => console.error("[realtime] RabbitMQ consumer failed:", err));
+});
