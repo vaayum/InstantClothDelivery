@@ -32,8 +32,26 @@ describe("isValidTransition", () => {
   it("allows ARRIVED → TRIAL_IN_PROGRESS", () => {
     expect(isValidTransition("ARRIVED", "TRIAL_IN_PROGRESS")).toBe(true);
   });
+  it("allows ARRIVED → DELIVERED", () => {
+    expect(isValidTransition("ARRIVED", "DELIVERED")).toBe(true);
+  });
   it("allows ARRIVED → RESCHEDULED", () => {
     expect(isValidTransition("ARRIVED", "RESCHEDULED")).toBe(true);
+  });
+  it("allows TRIAL_IN_PROGRESS → DELIVERED", () => {
+    expect(isValidTransition("TRIAL_IN_PROGRESS", "DELIVERED")).toBe(true);
+  });
+  it("allows TRIAL_IN_PROGRESS → PARTIALLY_DELIVERED", () => {
+    expect(isValidTransition("TRIAL_IN_PROGRESS", "PARTIALLY_DELIVERED")).toBe(true);
+  });
+  it("allows TRIAL_IN_PROGRESS → RETURNED", () => {
+    expect(isValidTransition("TRIAL_IN_PROGRESS", "RETURNED")).toBe(true);
+  });
+  it("rejects DELIVERED → PENDING", () => {
+    expect(isValidTransition("DELIVERED", "PENDING")).toBe(false);
+  });
+  it("rejects RETURNED → DELIVERED", () => {
+    expect(isValidTransition("RETURNED", "DELIVERED")).toBe(false);
   });
   it("allows RESCHEDULED → AGENT_ASSIGNED", () => {
     expect(isValidTransition("RESCHEDULED", "AGENT_ASSIGNED")).toBe(true);

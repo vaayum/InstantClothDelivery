@@ -185,9 +185,9 @@ router.post("/:orderId/deliver", requireAuth, requireAgent, async (req, res) => 
   }
 
   try {
-    await axios.patch(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/status`, { status: "COMPLETED" });
+    await axios.post(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/finalize`);
   } catch (err) {
-    console.error("POST /assignments/:orderId/deliver order-service error", err);
+    console.error("POST /assignments/:orderId/deliver finalize error", err);
     return res.status(502).json({ error: "Order service unreachable" });
   }
 

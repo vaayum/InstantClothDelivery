@@ -12,8 +12,10 @@ import type { Order, OrderStatus } from "../lib/types";
 const TIMELINE: OrderStatus[] = [
   "PENDING", "WAREHOUSE_PROCESSING", "READY_FOR_PICKUP",
   "AGENT_ASSIGNED", "AGENT_EN_ROUTE", "ARRIVED",
-  "TRIAL_IN_PROGRESS", "COMPLETED",
+  "TRIAL_IN_PROGRESS", "DELIVERED",
 ];
+
+const TERMINAL_DELIVERY: OrderStatus[] = ["DELIVERED", "PARTIALLY_DELIVERED", "RETURNED"];
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING: "Order Placed",
@@ -23,6 +25,9 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   AGENT_EN_ROUTE: "On the Way",
   ARRIVED: "Agent Arrived",
   TRIAL_IN_PROGRESS: "30-Min Trial",
+  DELIVERED: "Delivered",
+  PARTIALLY_DELIVERED: "Partially Delivered",
+  RETURNED: "Items Returned",
   COMPLETED: "Delivered",
   CANCELLED: "Cancelled",
   RESCHEDULED: "Rescheduled",
@@ -113,7 +118,10 @@ export default function OrderTrackingScreen() {
   }
 
   const currentStatus = socketStatus ?? order.status;
-  const currentIdx = TIMELINE.indexOf(currentStatus);
+  // PARTIALLY_DELIVERED and RETURNED map to the DELIVERED slot in the timeline
+  const timelineStatus: OrderStatus = TERMINAL_DELIVERY.includes(currentStatus) ? "DELIVERED" : currentStatus;
+  const currentIdx = TIMELINE.indexOf(timelineStatus);
+  const isTerminalDelivery = TERMINAL_DELIVERY.includes(currentStatus);
   const isCancelled = currentStatus === "CANCELLED";
   const canCancel = currentStatus === "PENDING" || currentStatus === "AGENT_ASSIGNED";
   const showMap = (currentStatus === "AGENT_EN_ROUTE" || currentStatus === "ARRIVED") && agentLocation;
@@ -159,9 +167,8 @@ export default function OrderTrackingScreen() {
       {!isCancelled && (
         <View style={s.timeline}>
           {TIMELINE.filter((s) => !(s === "TRIAL_IN_PROGRESS" && !order.isTryOrder)).map((step, idx) => {
-            const isCompleted = currentStatus === "COMPLETED";
-            const done = isCompleted ? idx <= currentIdx : idx < currentIdx;
-            const active = !isCompleted && idx === currentIdx;
+            const done = isTerminalDelivery ? idx <= currentIdx : idx < currentIdx;
+            const active = !isTerminalDelivery && idx === currentIdx;
             return (
               <View key={step} style={s.timelineRow}>
                 <View style={s.timelineLeft}>
@@ -190,6 +197,23 @@ export default function OrderTrackingScreen() {
       {isCancelled && (
         <View style={s.cancelledBox}>
           <Text style={s.cancelledText}>This order has been cancelled.</Text>
+        </View>
+      )}
+
+      {/* Delivery outcome summary for try-orders */}
+      {order.isTryOrder && isTerminalDelivery && (
+        <View style={s.outcomeBox}>
+          {(() => {
+            const kept = order.items.filter((i) => i.status === "KEPT").length;
+            const returned = order.items.filter((i) => i.status === "RETURNED").length;
+            if (currentStatus === "RETURNED") {
+              return <Text style={s.outcomeText}>All {returned} item{returned !== 1 ? "s" : ""} returned — full refund issued</Text>;
+            }
+            if (currentStatus === "PARTIALLY_DELIVERED") {
+              return <Text style={s.outcomeText}>{kept} item{kept !== 1 ? "s" : ""} kept · {returned} returned</Text>;
+            }
+            return <Text style={s.outcomeText}>All {kept} item{kept !== 1 ? "s" : ""} kept</Text>;
+          })()}
         </View>
       )}
 
@@ -260,6 +284,8 @@ const s = StyleSheet.create({
   totalValue: { color: "#fff", fontSize: 15, fontWeight: "bold" },
   feeNote: { color: "#555", fontSize: 12, marginTop: 4 },
   tryNote: { color: "#7c3aed", fontSize: 12, marginTop: 4 },
+  outcomeBox: { backgroundColor: "#1a1a1a", borderRadius: 12, padding: 16, marginBottom: 16, alignItems: "center" },
+  outcomeText: { color: "#aaa", fontSize: 14 },
   cancelBtn: { borderWidth: 1, borderColor: "#ef4444", borderRadius: 12, padding: 16, alignItems: "center" },
   cancelBtnText: { color: "#ef4444", fontWeight: "600", fontSize: 15 },
   errorText: { color: "#ef4444", fontSize: 16, marginBottom: 16 },
