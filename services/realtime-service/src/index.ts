@@ -64,7 +64,24 @@ async function startRabbitMQConsumer() {
     }
   });
 
-  console.log("[realtime] Consuming order.status_changed");
+  const paymentQ = await ch.assertQueue("realtime.payment", { durable: true });
+  await ch.bindQueue(paymentQ.queue, EXCHANGE, "payment.*");
+  ch.consume(paymentQ.queue, (msg) => {
+    if (!msg) return;
+    try {
+      const payload = JSON.parse(msg.content.toString()) as { orderId: string; status: string };
+      io.to(`order:${payload.orderId}`).emit("payment:status", {
+        orderId: payload.orderId,
+        status: payload.status,
+        timestamp: new Date().toISOString(),
+      });
+      ch.ack(msg);
+    } catch {
+      ch.nack(msg, false, false);
+    }
+  });
+
+  console.log("[realtime] Consuming order.status_changed, payment.*");
 }
 
 httpServer.listen(PORT, () => {

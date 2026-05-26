@@ -86,10 +86,15 @@ export async function handleEvent(routingKey: string, payload: unknown): Promise
     }
   } else if (routingKey === "assignment.no_agent_available") {
     const orderId = p.orderId as string;
-    console.error(
-      `[notification] NO AGENT AVAILABLE — orderId=${orderId} at ${new Date().toISOString()}`
-    );
-    // TODO: replace with admin push/SMS once admin FCM token is stored
+    const attempt = (p.attempt as number | undefined) ?? 0;
+    console.error(`[notification] NO AGENT AVAILABLE — orderId=${orderId} attempt=${attempt + 1}`);
+    const adminPhone = process.env.ADMIN_PHONE;
+    if (adminPhone) {
+      await sendSms(
+        adminPhone,
+        `ThreadDash Alert: No agents available for order ${orderId} (attempt ${attempt + 1}/3). System will retry automatically.`
+      ).catch(() => {});
+    }
   } else if (routingKey === "order.absent_threshold_reached") {
     const customerId = p.customerId as string;
     const orderId = p.orderId as string;

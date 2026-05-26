@@ -3,6 +3,7 @@ import crypto from "crypto";
 import axios from "axios";
 import { getPrisma } from "../lib/db";
 import { getRazorpay } from "../lib/razorpay";
+import { publishEvent } from "../lib/rabbitmq";
 
 const ORDER_URL = process.env.ORDER_SERVICE_URL ?? "http://localhost:3001";
 
@@ -39,6 +40,43 @@ router.post("/create-order", async (req, res) => {
     console.error("[payment] create-order failed:", err);
     return res.status(502).json({ error: "Razorpay order creation failed" });
   }
+});
+
+// POST /payments/verify
+// Called by customer app after Razorpay checkout succeeds — verifies HMAC signature
+router.post("/verify", async (req, res) => {
+  const { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body as {
+    orderId: string;
+    razorpayPaymentId: string;
+    razorpayOrderId: string;
+    razorpaySignature: string;
+  };
+
+  if (!orderId || !razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
+    return res.status(400).json({ error: "orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature required" });
+  }
+
+  const secret = process.env.RAZORPAY_KEY_SECRET ?? "";
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+    .digest("hex");
+
+  if (expected !== razorpaySignature) {
+    return res.status(400).json({ error: "Invalid payment signature" });
+  }
+
+  const prisma = getPrisma();
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { paymentStatus: "AUTHORIZED" },
+  });
+
+  await publishEvent("payment.authorized", {
+    orderId, userId: "", status: "AUTHORIZED",
+  }).catch(() => {});
+
+  return res.json({ success: true });
 });
 
 // POST /payments/capture
@@ -213,12 +251,32 @@ router.post("/webhook", async (req, res) => {
       data: { paymentStatus: newStatus as any },
     });
 
-    if (event === "payment.failed") {
-      const order = await prisma.order.findFirst({ where: { razorpayOrderId }, select: { id: true } });
-      if (order) {
+    const order = await prisma.order.findFirst({
+      where: { razorpayOrderId },
+      select: { id: true, userId: true, totalAmount: true, deliveryFee: true },
+    });
+
+    if (order) {
+      if (event === "payment.failed") {
         axios
           .post(`${ORDER_URL}/internal/orders/${order.id}/cancel`)
           .catch((err) => console.error(`[webhook] order cancel failed for ${order.id}:`, err?.message));
+        publishEvent("payment.failed", {
+          orderId: order.id, userId: order.userId, status: "FAILED", reason: "razorpay_payment_failed",
+        }).catch(() => {});
+      } else if (event === "payment.authorized") {
+        publishEvent("payment.authorized", {
+          orderId: order.id, userId: order.userId, status: "AUTHORIZED",
+        }).catch(() => {});
+      } else if (event === "payment.captured") {
+        publishEvent("payment.captured", {
+          orderId: order.id, userId: order.userId, status: "CAPTURED",
+          amount: order.totalAmount + order.deliveryFee,
+        }).catch(() => {});
+      } else if (event === "refund.created") {
+        publishEvent("payment.refunded", {
+          orderId: order.id, userId: order.userId, status: "REFUNDED",
+        }).catch(() => {});
       }
     }
   }

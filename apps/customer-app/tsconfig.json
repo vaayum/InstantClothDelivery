@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "paths": { "@threaddash/shared-types": ["../../packages/shared-types/src"] }
+    "paths": { "@threaddash/shared-types": ["../../packages/shared-types/src"] },
+    "typeRoots": ["./types", "../../node_modules/@types"]
   }
 }

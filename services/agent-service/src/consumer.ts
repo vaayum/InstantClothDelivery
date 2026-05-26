@@ -15,7 +15,11 @@ interface OrderPlacedPayload {
   userId: string;
   isTryOrder: boolean;
   timestamp: string;
+  attempt?: number;
 }
+
+const MAX_DISPATCH_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 2 * 60 * 1000;
 
 interface RoutingCandidate {
   agent_id: string;
@@ -27,7 +31,7 @@ interface RoutingCandidate {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function handleOrderPlaced(payload: OrderPlacedPayload): Promise<void> {
-  const { orderId } = payload;
+  const { orderId, attempt = 0 } = payload;
   const prisma = getPrisma();
 
   // Step through warehouse states so the customer tracking screen
@@ -54,8 +58,22 @@ export async function handleOrderPlaced(payload: OrderPlacedPayload): Promise<vo
   const eligibleAgents = allAgents.filter((a) => a.assignments.length < a.maxConcurrent);
 
   if (eligibleAgents.length === 0) {
-    console.warn(`[agent-consumer] No eligible agents for order ${orderId}`);
-    await publishEvent("assignment.no_agent_available", { orderId, timestamp: new Date().toISOString() });
+    console.warn(`[agent-consumer] No eligible agents for order ${orderId} (attempt ${attempt + 1}/${MAX_DISPATCH_ATTEMPTS})`);
+    await publishEvent("assignment.no_agent_available", { orderId, attempt, timestamp: new Date().toISOString() });
+
+    if (attempt + 1 >= MAX_DISPATCH_ATTEMPTS) {
+      console.error(`[agent-consumer] Permanently failed to dispatch order ${orderId} after ${MAX_DISPATCH_ATTEMPTS} attempts`);
+      await axios
+        .post(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/cancel`)
+        .catch((err) => console.error(`[agent-consumer] Cancel failed for ${orderId}:`, err?.message));
+      await publishEvent("assignment.permanently_failed", { orderId, timestamp: new Date().toISOString() });
+      return;
+    }
+
+    setTimeout(() => {
+      publishEvent("order.placed", { ...payload, attempt: attempt + 1, timestamp: new Date().toISOString() })
+        .catch((err) => console.error(`[agent-consumer] Requeue failed for ${orderId}:`, err?.message));
+    }, RETRY_DELAY_MS);
     return;
   }
 

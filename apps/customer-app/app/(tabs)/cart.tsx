@@ -4,9 +4,12 @@ import {
   ScrollView, ActivityIndicator, Alert,
 } from "react-native";
 import { router } from "expo-router";
+import RazorpayCheckout from "react-native-razorpay";
 import { api, clearSession } from "../lib/api";
 import { useCart } from "../context/CartContext";
 import type { Address, PaymentMethod } from "../lib/types";
+
+const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? "";
 
 const PAYMENT_OPTIONS: PaymentMethod[] = ["UPI", "CARD", "NET_BANKING", "COD"];
 
@@ -39,14 +42,56 @@ export default function CartScreen() {
     if (!selectedAddress) { Alert.alert("No address", "Add a delivery address in your Profile first."); return; }
     setPlacing(true);
     try {
-      const res = await api.post<{ id: string }>("/api/orders", {
-        items: items.map((i) => ({ skuId: i.skuId, quantity: i.quantity })),
-        addressId: selectedAddress.id,
-        paymentMethod,
-        isTryOrder: allTryable ? isTryOrder : false,
-      });
-      clearCart();
-      router.replace(`/order/${res.data.id}`);
+      const res = await api.post<{ id: string; razorpayOrderId: string | null; totalAmount: number; deliveryFee: number }>(
+        "/api/orders",
+        {
+          items: items.map((i) => ({ skuId: i.skuId, quantity: i.quantity })),
+          addressId: selectedAddress.id,
+          paymentMethod,
+          isTryOrder: allTryable ? isTryOrder : false,
+        }
+      );
+
+      const orderId = res.data.id;
+
+      if (paymentMethod === "COD") {
+        clearCart();
+        router.replace(`/order/${orderId}`);
+        return;
+      }
+
+      // Non-COD: open Razorpay checkout
+      const rzpOrderId = res.data.razorpayOrderId;
+      if (!rzpOrderId) {
+        Alert.alert("Payment error", "Could not initiate payment. Please try again.");
+        return;
+      }
+
+      const amount = res.data.totalAmount + res.data.deliveryFee;
+      try {
+        const payment = await RazorpayCheckout.open({
+          description: "ThreadDash Order",
+          currency: "INR",
+          key: RAZORPAY_KEY_ID,
+          amount,
+          name: "ThreadDash",
+          order_id: rzpOrderId,
+          theme: { color: "#000000" },
+        });
+
+        await api.post("/api/payments/verify", {
+          orderId,
+          razorpayPaymentId: payment.razorpay_payment_id,
+          razorpayOrderId: payment.razorpay_order_id,
+          razorpaySignature: payment.razorpay_signature,
+        });
+
+        clearCart();
+        router.replace(`/order/${orderId}`);
+      } catch (payErr: unknown) {
+        const desc = (payErr as { description?: string }).description;
+        Alert.alert("Payment cancelled", desc ?? "Payment was not completed. Your order has been saved — try again from Orders.");
+      }
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 409) Alert.alert("Out of stock", "One or more items are not available.");

@@ -112,12 +112,20 @@ router.post("/", requireAuth, async (req, res) => {
     return res.status(500).json({ error: "Order creation failed" });
   }
 
-  axios
-    .post(`${PAYMENT_URL}/payments/create-order`, {
-      orderId: order.id,
-      amount: totalAmount + deliveryFee,
-    })
-    .catch((err) => console.error("[orders] payment create-order failed:", err?.message));
+  // For prepaid methods, await Razorpay order creation so razorpayOrderId is in the response.
+  // COD doesn't need Razorpay.
+  let razorpayOrderId: string | null = null;
+  if (paymentMethod !== "COD") {
+    try {
+      const { data } = await axios.post<{ razorpayOrderId: string }>(
+        `${PAYMENT_URL}/payments/create-order`,
+        { orderId: order.id, amount: totalAmount + deliveryFee }
+      );
+      razorpayOrderId = data.razorpayOrderId;
+    } catch (err) {
+      console.error("[orders] payment create-order failed:", (err as any)?.message);
+    }
+  }
 
   await prisma.warehouse.update({
     where: { id: routingResult.warehouse_id },
@@ -128,6 +136,7 @@ router.post("/", requireAuth, async (req, res) => {
     orderId: order.id,
     warehouseId: routingResult.warehouse_id,
     userId,
+    customerId: userId,
     isTryOrder,
     timestamp: new Date().toISOString(),
   });
@@ -135,7 +144,7 @@ router.post("/", requireAuth, async (req, res) => {
   const redis = getRedis();
   await redis.set(`sla:order:${order.id}`, new Date().toISOString(), "EX", 7200);
 
-  return res.status(201).json({ ...order, estimatedMinutes: routingResult.eta_minutes });
+  return res.status(201).json({ ...order, estimatedMinutes: routingResult.eta_minutes, razorpayOrderId });
 });
 
 router.get("/", requireAuth, async (req, res) => {
