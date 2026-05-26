@@ -64,7 +64,7 @@ describe("POST /:id/trial/start", () => {
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
 
-    const res = await request(app).post("/order-try/trial/start");
+    const res = await request(app).post("/api/orders/order-try/trial/start");
 
     expect(res.status).toBe(200);
     expect(res.body.trialStartedAt).toBeDefined();
@@ -83,7 +83,7 @@ describe("POST /:id/trial/start", () => {
       order: { findUnique: jest.fn().mockResolvedValue({ ...TRY_ORDER, isTryOrder: false }) },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    const res = await request(app).post("/order-try/trial/start");
+    const res = await request(app).post("/api/orders/order-try/trial/start");
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Not a try order/);
   });
@@ -91,7 +91,7 @@ describe("POST /:id/trial/start", () => {
   it("returns 404 when order not found", async () => {
     const mockPrisma = { order: { findUnique: jest.fn().mockResolvedValue(null) } };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    const res = await request(app).post("/order-not-found/trial/start");
+    const res = await request(app).post("/api/orders/order-not-found/trial/start");
     expect(res.status).toBe(404);
   });
 });
@@ -111,7 +111,7 @@ describe("POST /:id/trial/complete", () => {
     mockAxios.post.mockResolvedValue({ data: { success: true } }); // inventory/release + capture
 
     const res = await request(app)
-      .post("/order-try/trial/complete")
+      .post("/api/orders/order-try/trial/complete")
       .send({ keptSkuIds: ["sku-os-s"], returnedSkuIds: ["sku-jeans-32"] });
 
     expect(res.status).toBe(200);
@@ -144,7 +144,7 @@ describe("POST /:id/trial/complete", () => {
     mockAxios.post.mockResolvedValue({ data: { success: true } });
 
     await request(app)
-      .post("/order-try/trial/complete")
+      .post("/api/orders/order-try/trial/complete")
       .send({ keptSkuIds: ["sku-os-s"], returnedSkuIds: [] });
 
     const mockPub = publishEvent as jest.MockedFunction<typeof publishEvent>;
@@ -166,7 +166,7 @@ describe("POST /:id/trial/complete", () => {
     mockAxios.post.mockResolvedValue({ data: {} }); // capture call still fires
 
     await request(app)
-      .post("/order-try/trial/complete")
+      .post("/api/orders/order-try/trial/complete")
       .send({ keptSkuIds: ["sku-os-s", "sku-jeans-32"], returnedSkuIds: [] });
 
     expect(mockAxios.post).not.toHaveBeenCalledWith(
@@ -179,7 +179,7 @@ describe("POST /:id/trial/complete", () => {
     const mockPrisma = { order: { findUnique: jest.fn().mockResolvedValue(null) } };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
     const res = await request(app)
-      .post("/order-not-found/trial/complete")
+      .post("/api/orders/order-not-found/trial/complete")
       .send({ keptSkuIds: [], returnedSkuIds: [] });
     expect(res.status).toBe(404);
   });

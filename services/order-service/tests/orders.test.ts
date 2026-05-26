@@ -70,7 +70,7 @@ beforeEach(() => { jest.clearAllMocks(); });
 describe("POST /", () => {
   it("returns 201 with order and estimatedMinutes", async () => {
     const mockPrisma = setupHappyPath();
-    const res = await request(app).post("/").send({
+    const res = await request(app).post("/api/orders").send({
       items: [{ skuId: "sku-os-s", quantity: 1 }],
       addressId: "addr-1",
       paymentMethod: "UPI",
@@ -89,26 +89,26 @@ describe("POST /", () => {
   it("publishes order.placed event", async () => {
     setupHappyPath();
     const mockPub = publishEvent as jest.MockedFunction<typeof publishEvent>;
-    await request(app).post("/").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
+    await request(app).post("/api/orders").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
     expect(mockPub).toHaveBeenCalledWith("order.placed", expect.objectContaining({ orderId: "order-new", warehouseId: "wh-hsr" }));
   });
 
   it("sets sla:order Redis key with 7200s TTL", async () => {
     setupHappyPath();
-    await request(app).post("/").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
+    await request(app).post("/api/orders").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
     expect(mockRedis.set).toHaveBeenCalledWith("sla:order:order-new", expect.any(String), "EX", 7200);
   });
 
   it("adds COD delivery fee of 2000 paise", async () => {
     const mockPrisma = setupHappyPath();
-    await request(app).post("/").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "COD" });
+    await request(app).post("/api/orders").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "COD" });
     expect(mockPrisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ deliveryFee: 2000 }) })
     );
   });
 
   it("returns 400 when items is empty", async () => {
-    const res = await request(app).post("/").send({ items: [], addressId: "addr-1", paymentMethod: "UPI" });
+    const res = await request(app).post("/api/orders").send({ items: [], addressId: "addr-1", paymentMethod: "UPI" });
     expect(res.status).toBe(400);
   });
 
@@ -121,7 +121,7 @@ describe("POST /", () => {
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
     mockGetRedis.mockReturnValue(mockRedis as any);
-    const res = await request(app).post("/").send({ items: [{ skuId: "sku-nonexistent", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
+    const res = await request(app).post("/api/orders").send({ items: [{ skuId: "sku-nonexistent", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/SKU/);
   });
@@ -138,7 +138,7 @@ describe("POST /", () => {
     mockAxios.post
       .mockResolvedValueOnce({ data: { warehouse_id: "wh-hsr", eta_minutes: 22 } })
       .mockRejectedValueOnce({ response: { status: 409, data: { error: "Insufficient stock for SKU sku-os-s" } } });
-    const res = await request(app).post("/").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
+    const res = await request(app).post("/api/orders").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
     expect(res.status).toBe(409);
     expect(mockPrisma.order.create).not.toHaveBeenCalled();
   });
@@ -153,7 +153,7 @@ describe("POST /", () => {
     mockGetPrisma.mockReturnValue(mockPrisma as any);
     mockGetRedis.mockReturnValue(mockRedis as any);
     mockAxios.post.mockRejectedValueOnce(new Error("ECONNREFUSED"));
-    const res = await request(app).post("/").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
+    const res = await request(app).post("/api/orders").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
     expect(res.status).toBe(503);
   });
 });
@@ -165,7 +165,10 @@ const EXISTING_ORDER = {
   status: "PENDING" as const,
   paymentMethod: "UPI",
   items: [
-    { id: "item-1", skuId: "sku-os-s", quantity: 1, price: 129900, status: "PENDING" },
+    {
+      id: "item-1", skuId: "sku-os-s", quantity: 1, price: 129900, status: "PENDING",
+      sku: { size: "S", color: "White", product: { name: "Classic Oxford Shirt" } },
+    },
   ],
   address: { id: "addr-1", formattedAddress: "Koramangala" },
 };
@@ -176,7 +179,7 @@ describe("GET /:id", () => {
       order: { findUnique: jest.fn().mockResolvedValue(EXISTING_ORDER) },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    const res = await request(app).get("/order-existing");
+    const res = await request(app).get("/api/orders/order-existing");
     expect(res.status).toBe(200);
     expect(res.body.id).toBe("order-existing");
   });
@@ -186,7 +189,7 @@ describe("GET /:id", () => {
       order: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    const res = await request(app).get("/order-not-found");
+    const res = await request(app).get("/api/orders/order-not-found");
     expect(res.status).toBe(404);
   });
 
@@ -195,7 +198,7 @@ describe("GET /:id", () => {
       order: { findUnique: jest.fn().mockResolvedValue({ ...EXISTING_ORDER, userId: "user-other" }) },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    const res = await request(app).get("/order-existing");
+    const res = await request(app).get("/api/orders/order-existing");
     expect(res.status).toBe(403);
   });
 });
@@ -207,7 +210,7 @@ describe("PATCH /:id/status", () => {
     mockTransition.mockResolvedValue({ id: "order-existing", status: "WAREHOUSE_PROCESSING" } as any);
 
     const res = await request(app)
-      .patch("/order-existing/status")
+      .patch("/api/orders/order-existing/status")
       .send({ status: "WAREHOUSE_PROCESSING" });
 
     expect(res.status).toBe(200);
@@ -220,7 +223,7 @@ describe("PATCH /:id/status", () => {
       new Error("Cannot transition from COMPLETED to PENDING")
     );
     const res = await request(app)
-      .patch("/order-existing/status")
+      .patch("/api/orders/order-existing/status")
       .send({ status: "PENDING" });
     expect(res.status).toBe(409);
   });
@@ -239,7 +242,7 @@ describe("POST /:id/cancel", () => {
     mockGetRedis.mockReturnValue(mockRedis as any);
     mockAxios.post.mockResolvedValueOnce({ data: { success: true } });
 
-    const res = await request(app).post("/order-existing/cancel");
+    const res = await request(app).post("/api/orders/order-existing/cancel");
 
     expect(res.status).toBe(200);
     expect(mockAxios.post).toHaveBeenCalledWith(
@@ -253,7 +256,7 @@ describe("POST /:id/cancel", () => {
       order: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    const res = await request(app).post("/order-not-found/cancel");
+    const res = await request(app).post("/api/orders/order-not-found/cancel");
     expect(res.status).toBe(404);
   });
 });
@@ -267,7 +270,7 @@ describe("POST /:id/mark-absent", () => {
       },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    const res = await request(app).post("/order-existing/mark-absent");
+    const res = await request(app).post("/api/orders/order-existing/mark-absent");
     expect(res.status).toBe(200);
     expect(res.body.absentAttempts).toBe(2);
   });
@@ -281,7 +284,7 @@ describe("POST /:id/mark-absent", () => {
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
 
-    await request(app).post("/order-existing/mark-absent");
+    await request(app).post("/api/orders/order-existing/mark-absent");
 
     const mockPub = publishEvent as jest.MockedFunction<typeof publishEvent>;
     expect(mockPub).toHaveBeenCalledWith(
@@ -295,7 +298,7 @@ describe("POST /:id/mark-absent", () => {
       deliveryAssignment: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
-    const res = await request(app).post("/order-not-found/mark-absent");
+    const res = await request(app).post("/api/orders/order-not-found/mark-absent");
     expect(res.status).toBe(404);
   });
 });
