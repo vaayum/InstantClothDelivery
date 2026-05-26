@@ -18,10 +18,10 @@ app.get("/health", (_req, res) =>
   res.json({ status: "ok", service: "order-service" })
 );
 
-app.use("/", ordersRouter);
-app.use("/", trialRouter);
-app.use("/", catalogRouter);
-app.use("/", adminRouter);
+app.use("/api/catalog", catalogRouter);
+app.use("/api/orders", ordersRouter);
+app.use("/api/orders", trialRouter);
+app.use("/api/admin", adminRouter);
 app.use("/internal", internalRouter);
 
 if (require.main === module) {
