@@ -1,6 +1,11 @@
 import { Router } from "express";
+import axios from "axios";
 import { requireAuth } from "@threaddash/auth";
 import { getPrisma } from "../lib/db";
+import { getRedis } from "../lib/redis";
+import { transitionOrder } from "../transitions";
+
+const WAREHOUSE_URL = process.env.WAREHOUSE_SERVICE_URL ?? "http://localhost:3002";
 
 const router = Router();
 
@@ -80,6 +85,37 @@ router.get("/warehouse", requireAuth, async (_req, res): Promise<void> => {
     },
   });
   res.json(warehouses);
+});
+
+// POST /orders/:id/cancel  — admin force-cancel any cancellable order
+router.post("/orders/:id/cancel", requireAuth, async (req, res): Promise<void> => {
+  const { id } = req.params;
+  const prisma = getPrisma();
+
+  const order = await prisma.order.findUnique({ where: { id }, include: { items: true } });
+  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+
+  try {
+    await transitionOrder(id, "CANCELLED", `admin:${req.user!.userId}`);
+
+    await axios
+      .post(`${WAREHOUSE_URL}/inventory/release`, {
+        items: order.items.map((i) => ({ skuId: i.skuId, warehouseId: order.warehouseId, quantity: i.quantity })),
+      })
+      .catch((err) => console.error(`[admin] inventory release failed for ${id}:`, err?.message));
+
+    await prisma.warehouse.update({
+      where: { id: order.warehouseId },
+      data: { activeOrderCount: { decrement: 1 } },
+    });
+
+    await getRedis().del(`sla:order:${id}`).catch(() => {});
+
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Cancel failed";
+    res.status(message.includes("Cannot transition") ? 409 : 500).json({ error: message });
+  }
 });
 
 export default router;

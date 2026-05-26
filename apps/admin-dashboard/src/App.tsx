@@ -16,7 +16,8 @@ type Tab = "overview" | "orders" | "agents" | "warehouse";
 type OrderStatus =
   | "PENDING" | "WAREHOUSE_PROCESSING" | "READY_FOR_PICKUP"
   | "AGENT_ASSIGNED" | "AGENT_EN_ROUTE" | "ARRIVED"
-  | "TRIAL_IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "RESCHEDULED";
+  | "TRIAL_IN_PROGRESS" | "DELIVERED" | "PARTIALLY_DELIVERED" | "RETURNED"
+  | "COMPLETED" | "CANCELLED" | "RESCHEDULED";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "#f59e0b",
@@ -26,6 +27,9 @@ const STATUS_COLORS: Record<string, string> = {
   AGENT_EN_ROUTE: "#0ea5e9",
   ARRIVED: "#f97316",
   TRIAL_IN_PROGRESS: "#a855f7",
+  DELIVERED: "#22c55e",
+  PARTIALLY_DELIVERED: "#f59e0b",
+  RETURNED: "#6b7280",
   COMPLETED: "#22c55e",
   CANCELLED: "#ef4444",
   RESCHEDULED: "#6b7280",
@@ -42,17 +46,26 @@ interface Stats {
   activePickingTasks: number;
 }
 
+interface AdminOrderItem {
+  id: string;
+  quantity: number;
+  price: number;
+  status: string;
+  sku: { size: string; color: string; product: { name: string; brand: string } };
+}
+
 interface AdminOrder {
   id: string;
   status: OrderStatus;
   totalAmount: number;
   deliveryFee: number;
+  paymentMethod: string;
+  paymentStatus: string;
   isTryOrder: boolean;
   createdAt: string;
-  paymentMethod: string;
   user: { phone: string; name: string };
   address: { label: string; formattedAddress: string };
-  items: unknown[];
+  items: AdminOrderItem[];
 }
 
 interface AdminAgent {
@@ -236,18 +249,137 @@ function StatCard({ label, value, accent = "#fff" }: { label: string; value: str
   );
 }
 
+// ─── Order Detail Modal ───────────────────────────────────────────────────────
+
+const CANCELLABLE: OrderStatus[] = ["PENDING", "WAREHOUSE_PROCESSING", "READY_FOR_PICKUP", "AGENT_ASSIGNED"];
+
+function OrderDetailModal({ order, onClose, onCancelled }: {
+  order: AdminOrder;
+  onClose: () => void;
+  onCancelled: (id: string) => void;
+}) {
+  const [cancelling, setCancelling] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleCancel() {
+    if (!confirm(`Cancel order #${order.id.slice(-8).toUpperCase()}?`)) return;
+    setCancelling(true);
+    setError("");
+    try {
+      await api.post(`/api/admin/orders/${order.id}/cancel`);
+      onCancelled(order.id);
+      onClose();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error;
+      setError(msg ?? "Cancel failed");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 24 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ backgroundColor: "#111", border: "1px solid #222", borderRadius: 16, width: "100%", maxWidth: 620, maxHeight: "85vh", overflowY: "auto", padding: 28, display: "flex", flexDirection: "column", gap: 20 }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 800, margin: 0 }}>
+              #{order.id.slice(-8).toUpperCase()}
+            </h2>
+            <p style={{ color: "#555", fontSize: 12, margin: "4px 0 0" }}>{new Date(order.createdAt).toLocaleString("en-IN")}</p>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <StatusBadge status={order.status} />
+            <button onClick={onClose} style={{ background: "none", border: "1px solid #333", color: "#888", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+          </div>
+        </div>
+
+        {/* Customer & Address */}
+        <div style={{ backgroundColor: "#1a1a1a", borderRadius: 10, padding: 14, display: "flex", gap: 24 }}>
+          <div>
+            <p style={{ color: "#555", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 4px" }}>Customer</p>
+            <p style={{ color: "#fff", margin: 0, fontWeight: 600 }}>{order.user?.phone ?? "—"}</p>
+            {order.user?.name && <p style={{ color: "#888", fontSize: 13, margin: "2px 0 0" }}>{order.user.name}</p>}
+          </div>
+          <div>
+            <p style={{ color: "#555", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 4px" }}>Address</p>
+            <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>{order.address?.label}</p>
+            <p style={{ color: "#666", fontSize: 12, margin: "2px 0 0" }}>{order.address?.formattedAddress}</p>
+          </div>
+        </div>
+
+        {/* Items */}
+        <div>
+          <p style={{ color: "#555", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 10px" }}>Items ({order.items.length})</p>
+          <table style={{ ...s.table, fontSize: 13 }}>
+            <thead>
+              <tr>{["Product", "Size", "Color", "Qty", "Price", "Status"].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {order.items.map((item) => (
+                <tr key={item.id} style={s.tr}>
+                  <td style={s.td}><span style={{ color: "#fff" }}>{item.sku.product.name}</span><br /><span style={{ color: "#666", fontSize: 11 }}>{item.sku.product.brand}</span></td>
+                  <td style={{ ...s.td, textAlign: "center", color: "#aaa" }}>{item.sku.size}</td>
+                  <td style={{ ...s.td, color: "#aaa" }}>{item.sku.color}</td>
+                  <td style={{ ...s.td, textAlign: "center", color: "#fff", fontWeight: 700 }}>{item.quantity}</td>
+                  <td style={{ ...s.td, color: "#22c55e", fontWeight: 700 }}>{rupees(item.price * item.quantity)}</td>
+                  <td style={s.td}><StatusBadge status={item.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Payment Summary */}
+        <div style={{ backgroundColor: "#1a1a1a", borderRadius: 10, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <p style={{ color: "#555", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 4px" }}>Payment</p>
+            <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>{order.paymentMethod} · <StatusBadge status={order.paymentStatus ?? "PENDING"} /></p>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <p style={{ color: "#555", fontSize: 11, margin: "0 0 4px" }}>Total</p>
+            <p style={{ color: "#fff", fontSize: 20, fontWeight: 800, margin: 0 }}>{rupees(order.totalAmount + order.deliveryFee)}</p>
+            {order.deliveryFee > 0 && <p style={{ color: "#555", fontSize: 12, margin: "2px 0 0" }}>incl. ₹{(order.deliveryFee / 100)} delivery fee</p>}
+            {order.isTryOrder && <p style={{ color: "#a855f7", fontSize: 12, margin: "2px 0 0" }}>Try Before You Keep</p>}
+          </div>
+        </div>
+
+        {/* Cancel */}
+        {error && <p style={{ color: "#ef4444", fontSize: 13, margin: 0 }}>{error}</p>}
+        {CANCELLABLE.includes(order.status) && (
+          <button
+            onClick={handleCancel}
+            disabled={cancelling}
+            style={{ backgroundColor: "transparent", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 8, padding: "10px 20px", cursor: "pointer", fontWeight: 600, fontSize: 14 }}
+          >
+            {cancelling ? "Cancelling…" : "Cancel Order"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 const ORDER_STATUSES: OrderStatus[] = [
   "PENDING", "WAREHOUSE_PROCESSING", "READY_FOR_PICKUP",
   "AGENT_ASSIGNED", "AGENT_EN_ROUTE", "ARRIVED",
-  "TRIAL_IN_PROGRESS", "COMPLETED", "CANCELLED", "RESCHEDULED",
+  "TRIAL_IN_PROGRESS", "DELIVERED", "PARTIALLY_DELIVERED", "RETURNED",
+  "COMPLETED", "CANCELLED", "RESCHEDULED",
 ];
 
 function OrdersView() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [selected, setSelected] = useState<AdminOrder | null>(null);
 
   const load = useCallback(async (status: string) => {
     setLoading(true);
@@ -265,13 +397,17 @@ function OrdersView() {
 
   return (
     <div>
+      {selected && (
+        <OrderDetailModal
+          order={selected}
+          onClose={() => setSelected(null)}
+          onCancelled={(id) => setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: "CANCELLED" } : o))}
+        />
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h2 style={{ ...s.sectionTitle, margin: 0 }}>Orders</h2>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={s.select}
-        >
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={s.select}>
           <option value="">All statuses</option>
           {ORDER_STATUSES.map((st) => <option key={st} value={st}>{st.replace(/_/g, " ")}</option>)}
         </select>
@@ -289,7 +425,13 @@ function OrdersView() {
             </thead>
             <tbody>
               {orders.map((o) => (
-                <tr key={o.id} style={s.tr}>
+                <tr
+                  key={o.id}
+                  style={{ ...s.tr, cursor: "pointer" }}
+                  onClick={() => setSelected(o)}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#161616")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+                >
                   <td style={s.td}><code style={{ color: "#aaa", fontSize: 12 }}>#{o.id.slice(-8).toUpperCase()}</code></td>
                   <td style={s.td}><StatusBadge status={o.status} /></td>
                   <td style={s.td}><span style={{ color: "#fff" }}>{o.user?.phone ?? "—"}</span></td>
@@ -312,9 +454,12 @@ function OrdersView() {
 
 // ─── Agents ───────────────────────────────────────────────────────────────────
 
+const AGENT_STATUSES = ["AVAILABLE", "EN_ROUTE_WAREHOUSE", "EN_ROUTE_CUSTOMER", "OFF_DUTY"];
+
 function AgentsView() {
   const [agents, setAgents] = useState<AdminAgent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
     api.get<AdminAgent[]>("/api/admin/agents")
@@ -324,9 +469,17 @@ function AgentsView() {
 
   if (loading) return <Spinner />;
 
+  const filtered = statusFilter ? agents.filter((a) => a.status === statusFilter) : agents;
+
   return (
     <div>
-      <h2 style={s.sectionTitle}>Agents ({agents.length})</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h2 style={{ ...s.sectionTitle, margin: 0 }}>Agents ({filtered.length})</h2>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={s.select}>
+          <option value="">All statuses</option>
+          {AGENT_STATUSES.map((st) => <option key={st} value={st}>{st.replace(/_/g, " ")}</option>)}
+        </select>
+      </div>
       <div style={{ overflowX: "auto" }}>
         <table style={s.table}>
           <thead>
@@ -337,7 +490,7 @@ function AgentsView() {
             </tr>
           </thead>
           <tbody>
-            {agents.map((a) => {
+            {filtered.map((a) => {
               const active = a.assignments?.[0];
               return (
                 <tr key={a.id} style={s.tr}>
@@ -358,7 +511,7 @@ function AgentsView() {
             })}
           </tbody>
         </table>
-        {agents.length === 0 && <p style={{ color: "#555", textAlign: "center", padding: 32 }}>No agents registered.</p>}
+        {filtered.length === 0 && <p style={{ color: "#555", textAlign: "center", padding: 32 }}>No agents found.</p>}
       </div>
     </div>
   );

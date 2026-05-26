@@ -47,8 +47,16 @@ export async function expireTrials(): Promise<void> {
 
       const returnedAmount = toReturn.reduce((sum, i) => sum + i.price * i.quantity, 0);
       if (returnedAmount > 0) {
-        axios
+        await axios
           .post(`${PAYMENT_URL}/payments/refund`, { orderId: order.id, amount: returnedAmount })
+          .then(() =>
+            publishEvent("payment.refunded", {
+              orderId: order.id,
+              userId: order.userId,
+              status: "REFUNDED",
+              amount: returnedAmount,
+            }).catch(() => {})
+          )
           .catch((err) =>
             console.error(`[trial-timeout] refund failed for ${order.id}:`, err?.message)
           );

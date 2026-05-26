@@ -81,7 +81,29 @@ async function startRabbitMQConsumer() {
     }
   });
 
-  console.log("[realtime] Consuming order.status_changed, payment.*");
+  const rescheduleQ = await ch.assertQueue("realtime.assignment.rescheduled", { durable: true });
+  await ch.bindQueue(rescheduleQ.queue, EXCHANGE, "assignment.rescheduled");
+  ch.consume(rescheduleQ.queue, (msg) => {
+    if (!msg) return;
+    try {
+      const payload = JSON.parse(msg.content.toString()) as { orderId: string };
+      io.to(`order:${payload.orderId}`).emit("order:rescheduled", { orderId: payload.orderId });
+      ch.ack(msg);
+    } catch { ch.nack(msg, false, false); }
+  });
+
+  const absentQ = await ch.assertQueue("realtime.order.absent", { durable: true });
+  await ch.bindQueue(absentQ.queue, EXCHANGE, "order.absent_threshold_reached");
+  ch.consume(absentQ.queue, (msg) => {
+    if (!msg) return;
+    try {
+      const payload = JSON.parse(msg.content.toString()) as { orderId: string };
+      io.to(`order:${payload.orderId}`).emit("order:absent", { orderId: payload.orderId });
+      ch.ack(msg);
+    } catch { ch.nack(msg, false, false); }
+  });
+
+  console.log("[realtime] Consuming order.status_changed, payment.*, assignment.rescheduled, order.absent_threshold_reached");
 }
 
 httpServer.listen(PORT, () => {
