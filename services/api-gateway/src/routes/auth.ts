@@ -61,7 +61,7 @@ router.post("/admin-login", async (req, res): Promise<void> => {
 router.patch("/fcm-token", requireAuth, async (req, res): Promise<void> => {
   const { token } = req.body as { token?: string };
   if (!token) { res.status(400).json({ error: "token required" }); return; }
-  await prisma.user.update({ where: { id: req.user!.userId }, data: { fcmToken: token } });
+  await (prisma.user as any).update({ where: { id: req.user!.userId }, data: { fcmToken: token } });
   res.json({ success: true });
 });
 

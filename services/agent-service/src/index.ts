@@ -15,8 +15,8 @@ app.get("/health", (_req, res) =>
   res.json({ status: "ok", service: "agent-service" })
 );
 
-app.use("/assignments", assignmentsRouter);
-app.use("/agents", agentsRouter);
+app.use("/api/agents/assignments", assignmentsRouter);
+app.use("/api/agents", agentsRouter);
 
 if (require.main === module) {
   startConsumer().catch(console.error);

@@ -6,7 +6,7 @@ import { publishEvent } from "./lib/rabbitmq";
 const REALTIME_URL = process.env.REALTIME_SERVICE_URL ?? "http://localhost:3005";
 
 export const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING:              ["WAREHOUSE_PROCESSING", "CANCELLED"],
+  PENDING:              ["WAREHOUSE_PROCESSING", "AGENT_ASSIGNED", "CANCELLED"],
   WAREHOUSE_PROCESSING: ["READY_FOR_PICKUP"],
   READY_FOR_PICKUP:     ["AGENT_ASSIGNED"],
   AGENT_ASSIGNED:       ["AGENT_EN_ROUTE", "CANCELLED"],

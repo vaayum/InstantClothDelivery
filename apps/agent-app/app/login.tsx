@@ -31,16 +31,37 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/auth/verify-otp", { phone: phone.trim(), otp });
-      const { token, userId } = res.data as { token: string; userId: string };
-      await saveSession(token, userId);
+      const res = await api.post<{ token: string; user: { id: string } }>("/auth/verify-otp", { phone: phone.trim(), otp });
+      const token = res.data.token;
+      const userId = res.data.user.id;
+
+      // Register agent profile; backend promotes role to AGENT and returns a fresh token
+      let agentProfileId = userId;
+      let sessionToken = token;
+      try {
+        const regRes = await api.post("/api/agents", { userId, vehicleType: "two_wheeler" }, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        agentProfileId = regRes.data.id;
+        if (regRes.data.token) sessionToken = regRes.data.token;
+      } catch (regErr: unknown) {
+        const status = (regErr as { response?: { status?: number } }).response?.status;
+        if (status === 409) {
+          const body = (regErr as { response?: { data?: { agent?: { id?: string }; token?: string } } }).response?.data;
+          if (body?.agent?.id) agentProfileId = body.agent.id;
+          if (body?.token) sessionToken = body.token;
+        }
+      }
+
+      await saveSession(sessionToken, agentProfileId);
       getExpoPushToken().then((pushToken) => {
         if (pushToken) api.patch("/auth/fcm-token", { token: pushToken }).catch(() => {});
       });
       router.replace("/(tabs)");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
-      setError(status === 401 || status === 400 ? "Invalid OTP. Try again." : "Something went wrong.");
+      const msg = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
+      setError(status === 401 || status === 400 ? "Invalid OTP. Try again." : `Error ${status ?? "?"}: ${msg ?? (err as Error).message ?? "unknown"}`);
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import axios from "axios";
 import { AgentStatus } from "@prisma/client";
-import { requireAuth } from "@threaddash/auth";
+import { requireAuth, signJwt } from "@threaddash/auth";
 import { getPrisma } from "../lib/db";
 import { getRedis } from "../lib/redis";
 import { requireRole } from "../lib/role";
@@ -20,12 +20,19 @@ router.post("/", requireAuth, async (req, res) => {
   const prisma = getPrisma();
   try {
     const existing = await prisma.agent.findUnique({ where: { userId } });
-    if (existing) return res.status(409).json({ error: "Agent profile already exists" });
+    if (existing) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const token = user ? signJwt({ userId, role: "AGENT", phone: user.phone }) : null;
+      return res.status(409).json({ error: "Agent profile already exists", agent: existing, token });
+    }
 
-    const agent = await prisma.agent.create({
-      data: { userId, vehicleType: vehicleType ?? "two_wheeler" },
-    });
-    return res.status(201).json(agent);
+    const [agent, user] = await Promise.all([
+      prisma.agent.create({ data: { userId, vehicleType: vehicleType ?? "two_wheeler" } }),
+      prisma.user.update({ where: { id: userId }, data: { role: "AGENT" } }),
+    ]);
+
+    const newToken = signJwt({ userId, role: "AGENT", phone: user.phone });
+    return res.status(201).json({ ...agent, token: newToken });
   } catch (err) {
     console.error("POST /agents error", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -38,14 +45,27 @@ router.get("/:agentId", requireAuth, async (req, res) => {
   const prisma = getPrisma();
 
   try {
-    const agent = await prisma.agent.findUnique({
-      where: { id: agentId },
+    const agent = await prisma.agent.findFirst({
+      where: { OR: [{ id: agentId }, { userId: agentId }] },
       include: {
         _count: {
           select: {
             assignments: {
-              where: {
-                status: { in: ["ASSIGNED", "ACCEPTED", "PICKED_UP"] },
+              where: { status: { in: ["ASSIGNED", "ACCEPTED", "PICKED_UP"] } },
+            },
+          },
+        },
+        assignments: {
+          where: { status: { in: ["ASSIGNED", "ACCEPTED", "PICKED_UP"] } },
+          take: 1,
+          include: {
+            order: {
+              select: {
+                id: true,
+                address: { select: { formattedAddress: true } },
+                items: {
+                  select: { id: true, skuId: true, quantity: true, price: true },
+                },
               },
             },
           },
@@ -57,7 +77,22 @@ router.get("/:agentId", requireAuth, async (req, res) => {
       return res.status(404).json({ error: "Agent not found" });
     }
 
-    return res.json(agent);
+    const { assignments, ...rest } = agent as any;
+    return res.json({
+      ...rest,
+      activeAssignment: assignments?.[0]
+        ? {
+            ...assignments[0],
+            order: assignments[0].order
+              ? {
+                  id: assignments[0].order.id,
+                  deliveryAddress: assignments[0].order.address?.formattedAddress ?? "",
+                  items: assignments[0].order.items,
+                }
+              : undefined,
+          }
+        : undefined,
+    });
   } catch (err) {
     console.error("GET /agents/:agentId error", err);
     return res.status(500).json({ error: "Internal server error" });

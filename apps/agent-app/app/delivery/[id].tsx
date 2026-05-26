@@ -128,10 +128,22 @@ export default function DeliveryScreen() {
       }
 
       if (oStatus === "ARRIVED") {
+        if (a.order?.isTryOrder) {
+          return (
+            <View style={s.actionGroup}>
+              <TouchableOpacity style={s.primaryBtn} onPress={handleStartTrial} disabled={actionLoading}>
+                <Text style={s.btnText}>Start Trial (30 min)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.absentBtn} onPress={() => callAndReload(`/api/agents/assignments/${orderId}/absent`)} disabled={actionLoading}>
+                <Text style={s.btnText}>Mark Absent</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }
         return (
           <View style={s.actionGroup}>
-            <TouchableOpacity style={s.primaryBtn} onPress={handleStartTrial} disabled={actionLoading}>
-              <Text style={s.btnText}>Start Trial (30 min)</Text>
+            <TouchableOpacity style={s.primaryBtn} onPress={handleDeliver} disabled={actionLoading}>
+              <Text style={s.btnText}>Mark Delivered</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.absentBtn} onPress={() => callAndReload(`/api/agents/assignments/${orderId}/absent`)} disabled={actionLoading}>
               <Text style={s.btnText}>Mark Absent</Text>

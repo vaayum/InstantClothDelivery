@@ -86,7 +86,7 @@ export default function Dashboard() {
   return (
     <ScrollView
       style={s.scroll}
-      contentContainerStyle={s.content}
+      contentContainerStyle={[s.content, { flexGrow: 1 }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#fff" />}
     >
       <Text style={s.title}>ThreadDash Agent</Text>

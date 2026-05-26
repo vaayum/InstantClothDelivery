@@ -19,14 +19,45 @@ router.get("/:orderId", requireAuth, async (req, res) => {
   try {
     const assignment = await prisma.deliveryAssignment.findUnique({
       where: { orderId },
-      include: { agent: true },
+      include: {
+        agent: true,
+        order: {
+          include: {
+            address: { select: { formattedAddress: true } },
+            items: {
+              include: { sku: { include: { product: { select: { name: true } } } } },
+            },
+          },
+        },
+      },
     });
 
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found" });
     }
 
-    return res.json(assignment);
+    const { order, ...rest } = assignment as any;
+    return res.json({
+      ...rest,
+      order: order ? {
+        id: order.id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        isTryOrder: order.isTryOrder,
+        trialEndsAt: order.trialEndsAt,
+        deliveryAddress: order.address?.formattedAddress ?? "",
+        items: order.items.map((i: any) => ({
+          id: i.id,
+          skuId: i.skuId,
+          productName: i.sku?.product?.name ?? "",
+          size: i.sku?.size,
+          color: i.sku?.color,
+          quantity: i.quantity,
+          price: i.price,
+          status: i.status,
+        })),
+      } : null,
+    });
   } catch (err) {
     console.error("GET /assignments/:orderId error", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -91,7 +122,7 @@ router.post("/:orderId/pickup", requireAuth, requireAgent, async (req, res) => {
   }
 
   try {
-    await axios.patch(`${ORDER_SERVICE_URL}/${orderId}/status`, { status: "AGENT_EN_ROUTE" });
+    await axios.patch(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/status`, { status: "AGENT_EN_ROUTE" });
   } catch (err) {
     console.error("POST /assignments/:orderId/pickup order-service error", err);
     return res.status(502).json({ error: "Order service unreachable" });
@@ -116,7 +147,7 @@ router.post("/:orderId/arrive", requireAuth, requireAgent, async (req, res) => {
   }
 
   try {
-    await axios.patch(`${ORDER_SERVICE_URL}/${orderId}/status`, { status: "ARRIVED" });
+    await axios.patch(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/status`, { status: "ARRIVED" });
   } catch (err) {
     console.error("POST /assignments/:orderId/arrive order-service error", err);
     return res.status(502).json({ error: "Order service unreachable" });
@@ -154,7 +185,7 @@ router.post("/:orderId/deliver", requireAuth, requireAgent, async (req, res) => 
   }
 
   try {
-    await axios.patch(`${ORDER_SERVICE_URL}/${orderId}/status`, { status: "COMPLETED" });
+    await axios.patch(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/status`, { status: "COMPLETED" });
   } catch (err) {
     console.error("POST /assignments/:orderId/deliver order-service error", err);
     return res.status(502).json({ error: "Order service unreachable" });
@@ -193,7 +224,7 @@ router.post("/:orderId/absent", requireAuth, requireAgent, async (req, res) => {
       }
 
       try {
-        await axios.post(`${ORDER_SERVICE_URL}/${orderId}/mark-absent`);
+        await axios.post(`${ORDER_SERVICE_URL}/api/orders/${orderId}/mark-absent`);
       } catch (err) {
         console.error("POST /assignments/:orderId/absent order-service error (non-fatal)", err);
       }

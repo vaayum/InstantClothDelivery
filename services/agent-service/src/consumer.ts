@@ -4,16 +4,16 @@ import { getPrisma } from "./lib/db";
 import { publishEvent } from "./lib/rabbitmq";
 
 const EXCHANGE = "threaddash";
-const QUEUE = "agent.order.ready";
-const ROUTING_KEY = "order.status_changed";
+const QUEUE = "agent.order.placed";
+const ROUTING_KEY = "order.placed";
 const ROUTING_URL = process.env.ROUTING_SERVICE_URL ?? "http://localhost:8000";
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL ?? "http://localhost:3001";
 
-interface OrderStatusChangedPayload {
+interface OrderPlacedPayload {
   orderId: string;
-  from: string;
-  to: string;
-  actor: string;
+  warehouseId: string;
+  userId: string;
+  isTryOrder: boolean;
   timestamp: string;
 }
 
@@ -24,16 +24,13 @@ interface RoutingCandidate {
   score: number;
 }
 
-export async function handleOrderReadyForPickup(payload: OrderStatusChangedPayload): Promise<void> {
+export async function handleOrderPlaced(payload: OrderPlacedPayload): Promise<void> {
   const { orderId } = payload;
   const prisma = getPrisma();
 
   const order = await prisma.order.findUniqueOrThrow({
     where: { id: orderId },
-    include: {
-      address: true,
-      warehouse: true,
-    },
+    include: { address: true, warehouse: true },
   });
 
   const allAgents = await prisma.agent.findMany({
@@ -45,9 +42,7 @@ export async function handleOrderReadyForPickup(payload: OrderStatusChangedPaylo
     },
   });
 
-  const eligibleAgents = allAgents.filter(
-    (a) => a.assignments.length < a.maxConcurrent && a.currentLat !== null && a.currentLng !== null
-  );
+  const eligibleAgents = allAgents.filter((a) => a.assignments.length < a.maxConcurrent);
 
   if (eligibleAgents.length === 0) {
     console.warn(`[agent-consumer] No eligible agents for order ${orderId}`);
@@ -55,35 +50,36 @@ export async function handleOrderReadyForPickup(payload: OrderStatusChangedPaylo
     return;
   }
 
-  const { data } = await axios.post<{ candidates: RoutingCandidate[] }>(
-    `${ROUTING_URL}/assign-agent`,
-    {
-      warehouse_coords: { lat: order.warehouse.lat, lng: order.warehouse.lng },
-      delivery_coords: { lat: order.address.lat, lng: order.address.lng },
-      agents: eligibleAgents.map((a) => ({
-        agent_id: a.id,
-        lat: a.currentLat!,
-        lng: a.currentLng!,
-        current_order_count: a.assignments.length,
-        max_concurrent: a.maxConcurrent,
-      })),
-    }
-  );
+  // Use routing service when agents have GPS; otherwise pick first available
+  const agentsWithGps = eligibleAgents.filter((a) => a.currentLat !== null && a.currentLng !== null);
+  let bestAgentId: string;
 
-  if (!data.candidates || data.candidates.length === 0) {
-    console.warn(`[agent-consumer] Routing service returned no candidates for order ${orderId}`);
-    await publishEvent("assignment.no_agent_available", { orderId, timestamp: new Date().toISOString() });
-    return;
+  if (agentsWithGps.length > 0) {
+    const { data } = await axios.post<{ candidates: RoutingCandidate[] }>(
+      `${ROUTING_URL}/assign-agent`,
+      {
+        warehouse_coords: { lat: order.warehouse.lat, lng: order.warehouse.lng },
+        delivery_coords: { lat: order.address.lat, lng: order.address.lng },
+        agents: agentsWithGps.map((a) => ({
+          agent_id: a.id,
+          lat: a.currentLat!,
+          lng: a.currentLng!,
+          current_order_count: a.assignments.length,
+          max_concurrent: a.maxConcurrent,
+        })),
+      }
+    );
+    bestAgentId = data.candidates?.[0]?.agent_id ?? agentsWithGps[0].id;
+  } else {
+    bestAgentId = eligibleAgents[0].id;
   }
-
-  const best = data.candidates[0];
 
   await prisma.$transaction(async (tx) => {
     await tx.deliveryAssignment.upsert({
       where: { orderId },
-      create: { orderId, agentId: best.agent_id, status: "ASSIGNED" },
+      create: { orderId, agentId: bestAgentId, status: "ASSIGNED" },
       update: {
-        agentId: best.agent_id,
+        agentId: bestAgentId,
         status: "ASSIGNED",
         assignedAt: new Date(),
         acceptedAt: null,
@@ -94,25 +90,27 @@ export async function handleOrderReadyForPickup(payload: OrderStatusChangedPaylo
       },
     });
     await tx.agent.update({
-      where: { id: best.agent_id },
+      where: { id: bestAgentId },
       data: { status: "EN_ROUTE_WAREHOUSE" },
     });
   });
 
   try {
-    await axios.patch(`${ORDER_SERVICE_URL}/${orderId}/status`, { status: "AGENT_ASSIGNED" });
+    await axios.patch(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/status`, { status: "AGENT_ASSIGNED" });
   } catch (err) {
-    console.error(`[agent-consumer] Failed to update order ${orderId} status to AGENT_ASSIGNED:`, err);
+    console.error(`[agent-consumer] Failed to update order ${orderId} status:`, err);
   }
 
   await publishEvent("assignment.status_changed", {
     orderId,
-    agentId: best.agent_id,
+    agentId: bestAgentId,
     from: "UNASSIGNED",
     to: "ASSIGNED",
     actor: "system",
     timestamp: new Date().toISOString(),
   });
+
+  console.log(`[agent-consumer] Assigned order ${orderId} to agent ${bestAgentId}`);
 }
 
 export async function startConsumer(): Promise<void> {
@@ -127,16 +125,14 @@ export async function startConsumer(): Promise<void> {
   ch.consume(q.queue, async (msg) => {
     if (!msg) return;
     try {
-      const payload = JSON.parse(msg.content.toString()) as OrderStatusChangedPayload;
-      if (payload.to !== "READY_FOR_PICKUP") {
-        ch.ack(msg);
-        return;
-      }
-      await handleOrderReadyForPickup(payload);
+      const payload = JSON.parse(msg.content.toString()) as OrderPlacedPayload;
+      await handleOrderPlaced(payload);
       ch.ack(msg);
     } catch (err) {
       console.error(`[agent-consumer] Failed to process message:`, err);
       ch.nack(msg, false, false);
     }
   });
+
+  console.log(`[agent-consumer] Listening on queue ${QUEUE}`);
 }

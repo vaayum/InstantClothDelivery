@@ -43,4 +43,28 @@ router.post("/orders/:id/cancel", async (req, res) => {
   }
 });
 
+// Internal-only endpoint — no auth. Called by agent-service for status transitions.
+router.patch("/orders/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body as { status: string };
+  if (!status) return res.status(400).json({ error: "status required" });
+
+  const prisma = getPrisma();
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) return res.status(404).json({ error: "Order not found" });
+
+  // Idempotent: already at target status (e.g. try-order deliver after trial/complete)
+  if (order.status === status) return res.json(order);
+
+  try {
+    const { transitionOrder } = await import("../transitions");
+    const updated = await transitionOrder(id, status as any, "system:agent-service");
+    return res.json(updated);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Status update failed";
+    const code = message.includes("Cannot transition") || message.includes("not found") ? 409 : 500;
+    return res.status(code).json({ error: message });
+  }
+});
+
 export default router;
