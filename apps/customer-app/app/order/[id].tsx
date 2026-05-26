@@ -33,7 +33,12 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   RESCHEDULED: "Rescheduled",
 };
 
-function TrialCountdown({ seconds }: { seconds: number }) {
+function TrialCountdown({ seconds: initialSeconds }: { seconds: number }) {
+  const [seconds, setSeconds] = useState(initialSeconds);
+  useEffect(() => {
+    const t = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, []);
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   const urgent = seconds < 300;

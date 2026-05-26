@@ -224,7 +224,7 @@ router.post("/:orderId/absent", requireAuth, requireAgent, async (req, res) => {
       }
 
       try {
-        await axios.post(`${ORDER_SERVICE_URL}/api/orders/${orderId}/mark-absent`);
+        await axios.patch(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/status`, { status: "RESCHEDULED" });
       } catch (err) {
         console.error("POST /assignments/:orderId/absent order-service error (non-fatal)", err);
       }

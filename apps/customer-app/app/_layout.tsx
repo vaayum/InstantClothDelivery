@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { Stack, router } from "expo-router";
 import { getToken } from "./lib/api";
+import { CartProvider } from "./context/CartContext";
 
 export default function RootLayout() {
   const [token, setToken] = useState<string | null | undefined>(undefined);
@@ -24,11 +25,14 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="order/[id]" options={{ title: "Order Tracking", headerBackTitle: "Orders" }} />
-      <Stack.Screen name="product/[id]" options={{ title: "Product" }} />
-    </Stack>
+    <CartProvider>
+      <Stack>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="order/[id]" options={{ title: "Order Tracking", headerBackTitle: "Orders" }} />
+        <Stack.Screen name="product/[id]" options={{ title: "Product" }} />
+        <Stack.Screen name="cart" options={{ title: "Cart" }} />
+      </Stack>
+    </CartProvider>
   );
 }

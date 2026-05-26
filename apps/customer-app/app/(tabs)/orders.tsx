@@ -16,6 +16,9 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   AGENT_EN_ROUTE: "On the Way",
   ARRIVED: "Agent Arrived",
   TRIAL_IN_PROGRESS: "Trial in Progress",
+  DELIVERED: "Delivered",
+  PARTIALLY_DELIVERED: "Partially Delivered",
+  RETURNED: "Returned",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
   RESCHEDULED: "Rescheduled",
@@ -23,6 +26,9 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 
 const STATUS_COLORS: Partial<Record<OrderStatus, string>> = {
   COMPLETED: "#22c55e",
+  DELIVERED: "#22c55e",
+  PARTIALLY_DELIVERED: "#f59e0b",
+  RETURNED: "#6b7280",
   CANCELLED: "#ef4444",
   TRIAL_IN_PROGRESS: "#7c3aed",
   AGENT_EN_ROUTE: "#3b82f6",
