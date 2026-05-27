@@ -79,7 +79,7 @@ describe("GET /agents/:agentId", () => {
     mockPrisma.agent.findUnique.mockResolvedValue(agentWithCount);
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).get("/agents/agent-1");
+    const res = await request(app).get("/api/agents/agent-1");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -100,7 +100,7 @@ describe("GET /agents/:agentId", () => {
     mockPrisma.agent.findUnique.mockResolvedValue(null);
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).get("/agents/agent-nonexistent");
+    const res = await request(app).get("/api/agents/agent-nonexistent");
 
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ error: "Agent not found" });
@@ -119,7 +119,7 @@ describe("PATCH /agents/:agentId/location", () => {
     (mockGetRedis as jest.Mock).mockReturnValue(mockRedis);
 
     const res = await request(app)
-      .patch("/agents/agent-1/location")
+      .patch("/api/agents/agent-1/location")
       .send({ lat: 13.0, lng: 77.6 });
 
     expect(res.status).toBe(200);
@@ -152,7 +152,7 @@ describe("PATCH /agents/:agentId/location", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/location")
+      .patch("/api/agents/agent-1/location")
       .send({ lng: 77.6 });
 
     expect(res.status).toBe(400);
@@ -164,7 +164,7 @@ describe("PATCH /agents/:agentId/location", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/location")
+      .patch("/api/agents/agent-1/location")
       .send({ lat: 13.0 });
 
     expect(res.status).toBe(400);
@@ -176,7 +176,7 @@ describe("PATCH /agents/:agentId/location", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/location")
+      .patch("/api/agents/agent-1/location")
       .send({ lat: "13.0", lng: 77.6 });
 
     expect(res.status).toBe(400);
@@ -188,7 +188,7 @@ describe("PATCH /agents/:agentId/location", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/location")
+      .patch("/api/agents/agent-1/location")
       .send({ lat: 13.0, lng: "77.6" });
 
     expect(res.status).toBe(400);
@@ -205,7 +205,7 @@ describe("PATCH /agents/:agentId/status", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/status")
+      .patch("/api/agents/agent-1/status")
       .send({ status: "AVAILABLE" });
 
     expect(res.status).toBe(200);
@@ -224,7 +224,7 @@ describe("PATCH /agents/:agentId/status", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/status")
+      .patch("/api/agents/agent-1/status")
       .send({ status: "OFF_DUTY" });
 
     expect(res.status).toBe(200);
@@ -236,7 +236,7 @@ describe("PATCH /agents/:agentId/status", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/status")
+      .patch("/api/agents/agent-1/status")
       .send({ status: "EN_ROUTE_WAREHOUSE" });
 
     expect(res.status).toBe(400);
@@ -249,7 +249,7 @@ describe("PATCH /agents/:agentId/status", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/status")
+      .patch("/api/agents/agent-1/status")
       .send({ status: "INVALID_STATUS" });
 
     expect(res.status).toBe(400);
@@ -261,7 +261,7 @@ describe("PATCH /agents/:agentId/status", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
 
     const res = await request(app)
-      .patch("/agents/agent-1/status")
+      .patch("/api/agents/agent-1/status")
       .send({});
 
     expect(res.status).toBe(400);

@@ -70,7 +70,7 @@ describe("GET /assignments/:orderId", () => {
     mockPrisma.deliveryAssignment.findUnique.mockResolvedValue(assignmentWithAgent);
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).get("/assignments/order-1");
+    const res = await request(app).get("/api/agents/assignments/order-1");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ id: "assign-1", orderId: "order-1" });
@@ -84,7 +84,7 @@ describe("GET /assignments/:orderId", () => {
     mockPrisma.deliveryAssignment.findUnique.mockResolvedValue(null);
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).get("/assignments/order-nonexistent");
+    const res = await request(app).get("/api/agents/assignments/order-nonexistent");
 
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ error: "Assignment not found" });
@@ -108,7 +108,7 @@ describe("POST /assignments/:orderId/accept", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/accept");
+    const res = await request(app).post("/api/agents/assignments/order-1/accept");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true });
@@ -122,7 +122,7 @@ describe("POST /assignments/:orderId/accept", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/accept");
+    const res = await request(app).post("/api/agents/assignments/order-1/accept");
 
     expect(res.status).toBe(409);
     expect(res.body).toHaveProperty("error");
@@ -148,7 +148,7 @@ describe("POST /assignments/:orderId/decline", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/decline");
+    const res = await request(app).post("/api/agents/assignments/order-1/decline");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true });
@@ -165,7 +165,7 @@ describe("POST /assignments/:orderId/decline", () => {
     mockPrisma.deliveryAssignment.findUnique.mockResolvedValue(null);
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/decline");
+    const res = await request(app).post("/api/agents/assignments/order-1/decline");
 
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ error: "Assignment not found" });
@@ -183,7 +183,7 @@ describe("POST /assignments/:orderId/decline", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/decline");
+    const res = await request(app).post("/api/agents/assignments/order-1/decline");
 
     expect(res.status).toBe(409);
     expect(res.body).toHaveProperty("error");
@@ -206,7 +206,7 @@ describe("POST /assignments/:orderId/pickup", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/pickup");
+    const res = await request(app).post("/api/agents/assignments/order-1/pickup");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true });
@@ -224,7 +224,7 @@ describe("POST /assignments/:orderId/pickup", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/pickup");
+    const res = await request(app).post("/api/agents/assignments/order-1/pickup");
 
     expect(res.status).toBe(409);
     expect(res.body).toHaveProperty("error");
@@ -244,7 +244,7 @@ describe("POST /assignments/:orderId/pickup", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
     mockAxios.patch = jest.fn().mockRejectedValue(new Error("Order service down"));
 
-    const res = await request(app).post("/assignments/order-1/pickup");
+    const res = await request(app).post("/api/agents/assignments/order-1/pickup");
 
     expect(res.status).toBe(502);
     expect(res.body).toMatchObject({ error: "Order service unreachable" });
@@ -262,7 +262,7 @@ describe("POST /assignments/:orderId/arrive", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/arrive");
+    const res = await request(app).post("/api/agents/assignments/order-1/arrive");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true });
@@ -287,7 +287,7 @@ describe("POST /assignments/:orderId/arrive", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
     mockAxios.patch = jest.fn().mockRejectedValue(new Error("Order service down"));
 
-    const res = await request(app).post("/assignments/order-1/arrive");
+    const res = await request(app).post("/api/agents/assignments/order-1/arrive");
 
     expect(res.status).toBe(502);
     expect(res.body).toMatchObject({ error: "Order service unreachable" });
@@ -311,7 +311,7 @@ describe("POST /assignments/:orderId/deliver", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/deliver");
+    const res = await request(app).post("/api/agents/assignments/order-1/deliver");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true });
@@ -338,7 +338,7 @@ describe("POST /assignments/:orderId/deliver", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/deliver");
+    const res = await request(app).post("/api/agents/assignments/order-1/deliver");
 
     expect(res.status).toBe(409);
     expect(res.body).toHaveProperty("error");
@@ -360,7 +360,7 @@ describe("POST /assignments/:orderId/absent", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/absent");
+    const res = await request(app).post("/api/agents/assignments/order-1/absent");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ absentAttempts: 1, absent: false });
@@ -381,7 +381,7 @@ describe("POST /assignments/:orderId/absent", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/absent");
+    const res = await request(app).post("/api/agents/assignments/order-1/absent");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ absentAttempts: 2, absent: false });
@@ -409,7 +409,7 @@ describe("POST /assignments/:orderId/absent", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/absent");
+    const res = await request(app).post("/api/agents/assignments/order-1/absent");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ absentAttempts: 3, absent: true });
@@ -428,7 +428,7 @@ describe("POST /assignments/:orderId/absent", () => {
     mockPrisma.deliveryAssignment.findUnique.mockResolvedValue(null);
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/assignments/order-1/absent");
+    const res = await request(app).post("/api/agents/assignments/order-1/absent");
 
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ error: "Assignment not found" });
