@@ -7,6 +7,7 @@ import MapView, { Marker, type Region, type MapPressEvent } from "react-native-m
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCart } from "../context/CartContext";
 import { api, clearSession } from "../lib/api";
 import type { Address } from "../lib/types";
 
@@ -25,6 +26,8 @@ export default function ProfileScreen() {
   });
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { clearCart } = useCart();
+  const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
 
   const loadAddresses = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -113,6 +116,26 @@ export default function ProfileScreen() {
       Alert.alert("Error", "Could not save address.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function setPrimary(addressId: string) {
+    setSettingPrimary(addressId);
+    try {
+      const res = await api.post<{ warehouseChanged: boolean; deliveryAvailable: boolean }>(
+        `/api/addresses/${addressId}/set-primary`
+      );
+      if (res.data.warehouseChanged) {
+        clearCart();
+        Alert.alert("Location updated", "Cart cleared — your new location is set.");
+      } else {
+        Alert.alert("Location set", "Delivering to this address.");
+      }
+      await loadAddresses();
+    } catch {
+      Alert.alert("Error", "Could not update delivery address. Please try again.");
+    } finally {
+      setSettingPrimary(null);
     }
   }
 
@@ -224,9 +247,22 @@ export default function ProfileScreen() {
 
         {addresses.map((addr) => (
           <View key={addr.id} style={s.addrCard}>
-            <Text style={s.addrLabel}>{addr.label}</Text>
-            <Text style={s.addrText}>{addr.formattedAddress}</Text>
-            {addr.isSafeDrop && <Text style={s.safeDrop}>Safe Drop ✓</Text>}
+            <View style={s.addrRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.addrLabel}>{addr.label}</Text>
+                <Text style={s.addrText}>{addr.formattedAddress}</Text>
+                {addr.isSafeDrop && <Text style={s.safeDrop}>Safe Drop ✓</Text>}
+              </View>
+              <TouchableOpacity
+                style={s.deliverHereBtn}
+                onPress={() => setPrimary(addr.id)}
+                disabled={settingPrimary === addr.id}
+              >
+                {settingPrimary === addr.id
+                  ? <ActivityIndicator size="small" color="#3b82f6" />
+                  : <Text style={s.deliverHereText}>Deliver here</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
       </View>
@@ -258,6 +294,9 @@ const s = StyleSheet.create({
   addrLabel: { color: "#fff", fontWeight: "600", marginBottom: 2 },
   addrText: { color: "#aaa", fontSize: 13 },
   safeDrop: { color: "#22c55e", fontSize: 12, marginTop: 4 },
+  addrRow: { flexDirection: "row", alignItems: "center" },
+  deliverHereBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+  deliverHereText: { color: "#3b82f6", fontSize: 12, fontWeight: "600" },
   empty: { color: "#555", fontSize: 14 },
   logoutBtn: { borderWidth: 1, borderColor: "#333", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 8 },
   logoutText: { color: "#888", fontSize: 15 },
