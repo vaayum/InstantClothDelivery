@@ -197,6 +197,29 @@ describe("POST /", () => {
     expect(res.body.unavailableSkuIds).toContain("sku-os-s");
     expect(mockPrisma.order.create).not.toHaveBeenCalled();
   });
+
+  it("returns 503 when pinned warehouse is INACTIVE", async () => {
+    const mockPrisma = {
+      sku: { findMany: jest.fn().mockResolvedValue(SEED_SKUS) },
+      address: { findFirst: jest.fn().mockResolvedValue(SEED_ADDRESS) },
+      user: { findUnique: jest.fn().mockResolvedValue(SEED_USER) },
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({ id: "wh-hsr", status: "INACTIVE" }),
+        update: jest.fn(),
+      },
+      order: { create: jest.fn() },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    mockGetRedis.mockReturnValue(mockRedis as any);
+
+    const res = await request(app).post("/api/orders").send({
+      items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI",
+    });
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe("warehouse_unavailable");
+    expect(mockPrisma.order.create).not.toHaveBeenCalled();
+  });
 });
 
 const EXISTING_ORDER = {

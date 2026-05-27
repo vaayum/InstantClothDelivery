@@ -37,7 +37,7 @@ router.post("/", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Address not found" });
   }
 
-  const user = await (prisma.user as any).findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { pinnedWarehouseId: true, pinnedEtaMinutes: true },
   });
