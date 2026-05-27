@@ -82,19 +82,23 @@ router.get("/availability", async (req, res) => {
   const skuIdList = skuIds.split(",").filter(Boolean);
   const prisma = getPrisma();
 
-  const rows = await prisma.inventory.findMany({
-    where: { warehouseId, skuId: { in: skuIdList } },
-    select: { skuId: true, quantityAvailable: true },
-  });
+  try {
+    const rows = await prisma.inventory.findMany({
+      where: { warehouseId, skuId: { in: skuIdList } },
+      select: { skuId: true, quantityAvailable: true },
+    });
 
-  const rowMap = new Map(rows.map((r) => [r.skuId, r.quantityAvailable]));
-  const result: Record<string, { quantityAvailable: number; available: boolean }> = {};
-  for (const skuId of skuIdList) {
-    const qty = rowMap.get(skuId) ?? 0;
-    result[skuId] = { quantityAvailable: qty, available: qty > 0 };
+    const rowMap = new Map(rows.map((r) => [r.skuId, r.quantityAvailable]));
+    const result: Record<string, { quantityAvailable: number; available: boolean }> = {};
+    for (const skuId of skuIdList) {
+      const qty = rowMap.get(skuId) ?? 0;
+      result[skuId] = { quantityAvailable: qty, available: qty > 0 };
+    }
+
+    return res.json(result);
+  } catch {
+    return res.status(500).json({ error: "Availability check failed" });
   }
-
-  return res.json(result);
 });
 
 export default router;

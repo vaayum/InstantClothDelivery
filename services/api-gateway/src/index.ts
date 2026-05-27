@@ -27,13 +27,17 @@ app.use("/api/users", usersRouter);
 
 // inject pinnedWarehouseId into catalog proxy requests
 app.use("/api/catalog", requireAuth, async (req: any, _res: any, next: any) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.userId },
-    select: { pinnedWarehouseId: true },
-  });
-  if (user?.pinnedWarehouseId) {
-    const sep = req.url.includes("?") ? "&" : "?";
-    req.url += `${sep}warehouseId=${encodeURIComponent(user.pinnedWarehouseId)}`;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { pinnedWarehouseId: true },
+    });
+    if (user?.pinnedWarehouseId) {
+      const sep = req.url.includes("?") ? "&" : "?";
+      req.url += `${sep}warehouseId=${encodeURIComponent(user.pinnedWarehouseId)}`;
+    }
+  } catch {
+    // DB error: forward request without warehouseId (graceful degradation)
   }
   next();
 });
@@ -43,11 +47,15 @@ app.get("/health", (_req, res) =>
 );
 
 app.get("/api/me", requireAuth, async (req: any, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.userId },
-    select: { pinnedWarehouseId: true },
-  });
-  res.json({ user: { ...req.user, pinnedWarehouseId: user?.pinnedWarehouseId ?? null } });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { pinnedWarehouseId: true },
+    });
+    res.json({ user: { ...req.user, pinnedWarehouseId: user?.pinnedWarehouseId ?? null } });
+  } catch {
+    res.status(500).json({ error: "Could not fetch user data" });
+  }
 });
 
 const routes: Record<string, string> = {

@@ -22,6 +22,10 @@ router.patch("/me/pinned-warehouse", requireAuth, async (req, res): Promise<void
     res.status(404).json({ error: "Warehouse not found" });
     return;
   }
+  if (warehouse.status !== "ACTIVE") {
+    res.status(400).json({ error: "Warehouse is not available" });
+    return;
+  }
 
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
