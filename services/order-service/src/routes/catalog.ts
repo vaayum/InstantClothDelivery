@@ -27,6 +27,7 @@ function enrichSkus(
 ) {
   return skus.map((s) => {
     const primary = primaryMap[s.id];
+    // warehouse-service unreachable — optimistically treat as available
     const available = primary?.available ?? true;
     const quantityAvailable = primary?.quantityAvailable ?? 0;
     const alternativeWarehouseId =
@@ -63,7 +64,7 @@ router.get("/", async (req, res): Promise<void> => {
   let altMap: AvailMap = {};
 
   if (oosSkuIds.length > 0) {
-    const otherWarehouses = await (prisma.warehouse as any).findMany({
+    const otherWarehouses = await prisma.warehouse.findMany({
       where: { status: "ACTIVE", id: { not: warehouseId } },
       select: { id: true },
     });
@@ -109,7 +110,7 @@ router.get("/:id", async (req, res): Promise<void> => {
   let altMap: AvailMap = {};
 
   if (oosSkuIds.length > 0) {
-    const otherWarehouses = await (prisma.warehouse as any).findMany({
+    const otherWarehouses = await prisma.warehouse.findMany({
       where: { status: "ACTIVE", id: { not: warehouseId } },
       select: { id: true },
     });
