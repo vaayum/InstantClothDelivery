@@ -168,7 +168,7 @@ describe("handleOrderPlaced", () => {
     expect(mockPublishEvent).not.toHaveBeenCalledWith("assignment.status_changed", expect.anything());
   });
 
-  it("no eligible agents because currentLat/currentLng is null: skips routing, publishes no_agent_available", async () => {
+  it("no eligible agents because currentLat/currentLng is null: falls back to first agent, skips routing, creates assignment", async () => {
     const mockPrisma = makeMockPrisma();
     mockPrisma.agent.findMany.mockResolvedValue([
       { ...BASE_AGENT, currentLat: null, currentLng: null, assignments: [] },
@@ -178,14 +178,45 @@ describe("handleOrderPlaced", () => {
 
     await expect(handleOrderPlaced(PAYLOAD)).resolves.toBeUndefined();
 
+    // No routing call (no GPS agents)
     expect(mockAxios.post).not.toHaveBeenCalled();
+
+    // Creates DeliveryAssignment + updates Agent in $transaction
+    expect(mockPrisma.$transaction).toHaveBeenCalled();
+    expect(mockPrisma.deliveryAssignment.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { orderId: "order-1" },
+        create: expect.objectContaining({ orderId: "order-1", agentId: "agent-1", status: "ASSIGNED" }),
+        update: expect.objectContaining({ agentId: "agent-1", status: "ASSIGNED" }),
+      })
+    );
+    expect(mockPrisma.agent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-1" },
+        data: { status: "EN_ROUTE_WAREHOUSE" },
+      })
+    );
+
+    // PATCHes order-service
+    expect(mockAxios.patch).toHaveBeenCalledWith(
+      expect.stringContaining("order-1"),
+      { status: "AGENT_ASSIGNED" }
+    );
+
+    // Publishes assignment.status_changed
     expect(mockPublishEvent).toHaveBeenCalledWith(
-      "assignment.no_agent_available",
-      expect.objectContaining({ orderId: "order-1" })
+      "assignment.status_changed",
+      expect.objectContaining({
+        orderId: "order-1",
+        agentId: "agent-1",
+        from: "UNASSIGNED",
+        to: "ASSIGNED",
+        actor: "system",
+      })
     );
   });
 
-  it("routing-service returns empty candidates: publishes no_agent_available", async () => {
+  it("routing-service returns empty candidates: falls back to first GPS agent, creates assignment", async () => {
     const mockPrisma = makeMockPrisma();
     mockGetPrisma.mockReturnValue(mockPrisma);
 
@@ -196,11 +227,49 @@ describe("handleOrderPlaced", () => {
 
     await expect(handleOrderPlaced(PAYLOAD)).resolves.toBeUndefined();
 
-    expect(mockPublishEvent).toHaveBeenCalledWith(
-      "assignment.no_agent_available",
-      expect.objectContaining({ orderId: "order-1" })
+    // Calls routing service
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining("/assign-agent"),
+      expect.objectContaining({
+        agents: expect.arrayContaining([
+          expect.objectContaining({ agent_id: "agent-1" }),
+        ]),
+      })
     );
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+
+    // Creates DeliveryAssignment + updates Agent in $transaction (falls back to agentsWithGps[0])
+    expect(mockPrisma.$transaction).toHaveBeenCalled();
+    expect(mockPrisma.deliveryAssignment.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { orderId: "order-1" },
+        create: expect.objectContaining({ orderId: "order-1", agentId: "agent-1", status: "ASSIGNED" }),
+        update: expect.objectContaining({ agentId: "agent-1", status: "ASSIGNED" }),
+      })
+    );
+    expect(mockPrisma.agent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-1" },
+        data: { status: "EN_ROUTE_WAREHOUSE" },
+      })
+    );
+
+    // PATCHes order-service
+    expect(mockAxios.patch).toHaveBeenCalledWith(
+      expect.stringContaining("order-1"),
+      { status: "AGENT_ASSIGNED" }
+    );
+
+    // Publishes assignment.status_changed
+    expect(mockPublishEvent).toHaveBeenCalledWith(
+      "assignment.status_changed",
+      expect.objectContaining({
+        orderId: "order-1",
+        agentId: "agent-1",
+        from: "UNASSIGNED",
+        to: "ASSIGNED",
+        actor: "system",
+      })
+    );
   });
 
   it("order-service PATCH fails: logs error but resolves (non-fatal)", async () => {
