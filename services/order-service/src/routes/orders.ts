@@ -192,8 +192,14 @@ router.get("/:id", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Forbidden" });
   }
 
+  let deliveryOtp: string | null = null;
+  if (order.status === "ARRIVED") {
+    deliveryOtp = await getRedis().get(`delivery:otp:${id}`);
+  }
+
   return res.json({
     ...order,
+    ...(deliveryOtp && { deliveryOtp }),
     items: order.items.map((item) => ({
       id: item.id,
       skuId: item.skuId,

@@ -64,6 +64,7 @@ export interface Order {
   trialStartedAt: string | null;
   trialEndsAt: string | null;
   estimatedMinutes?: number;
+  deliveryOtp?: string;
   items: OrderItem[];
   createdAt: string;
 }

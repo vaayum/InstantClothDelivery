@@ -97,4 +97,18 @@ router.post("/orders/:id/finalize", async (req, res) => {
   }
 });
 
+// Internal-only endpoint — no auth. Called by agent-service before finalizing delivery.
+router.post("/orders/:id/verify-delivery-otp", async (req, res) => {
+  const { id } = req.params;
+  const { otp } = req.body as { otp: string };
+  if (!otp) return res.status(400).json({ error: "otp required" });
+
+  const stored = await getRedis().get(`delivery:otp:${id}`);
+  if (!stored) return res.status(410).json({ error: "OTP expired or not found" });
+  if (stored !== otp) return res.status(400).json({ error: "Invalid OTP" });
+
+  await getRedis().del(`delivery:otp:${id}`);
+  return res.json({ success: true });
+});
+
 export default router;

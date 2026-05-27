@@ -60,9 +60,11 @@ export async function handleEvent(routingKey: string, payload: unknown): Promise
       if (customerId) await pushCustomer(customerId, "On the way!", "Your delivery is heading to you.", { orderId });
     } else if (status === "ARRIVED") {
       if (customerId) {
-        await pushCustomer(customerId, "Agent arrived!", "Your delivery agent is here. Please collect your order.", { orderId });
+        const deliveryOtp = p.deliveryOtp as string | undefined;
+        const otpText = deliveryOtp ? ` Your delivery OTP is ${deliveryOtp}.` : "";
+        await pushCustomer(customerId, "Agent arrived!", `Your delivery agent is here.${otpText}`, { orderId });
         const phone = await getPhone(customerId);
-        if (phone) await sendSms(phone, "Your ThreadDash delivery has arrived! Please collect your order.");
+        if (phone) await sendSms(phone, `Your ThreadDash delivery agent has arrived!${otpText} Share this OTP with the agent to confirm delivery.`);
       }
     } else if (status === "TRIAL_IN_PROGRESS") {
       if (customerId) await pushCustomer(customerId, "Trial started!", "30-minute try-on window started. Keep what you love!", { orderId });

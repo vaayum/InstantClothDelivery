@@ -2,6 +2,7 @@ import axios from "axios";
 import { OrderStatus } from "@prisma/client";
 import { getPrisma } from "./lib/db";
 import { publishEvent } from "./lib/rabbitmq";
+import { getRedis } from "./lib/redis";
 
 const REALTIME_URL = process.env.REALTIME_SERVICE_URL ?? "http://localhost:3005";
 
@@ -42,12 +43,19 @@ export async function transitionOrder(
     data: { status: newStatus },
   });
 
+  let deliveryOtp: string | undefined;
+  if (newStatus === "ARRIVED") {
+    deliveryOtp = String(Math.floor(1000 + Math.random() * 9000));
+    await getRedis().set(`delivery:otp:${orderId}`, deliveryOtp, "EX", 1800);
+  }
+
   await publishEvent("order.status_changed", {
     orderId,
     customerId: order.userId,
     from: order.status,
     to: newStatus,
     actor,
+    ...(deliveryOtp && { deliveryOtp }),
     timestamp: new Date().toISOString(),
   });
 

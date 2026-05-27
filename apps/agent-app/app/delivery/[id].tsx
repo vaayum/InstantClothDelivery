@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, ScrollView, Alert,
+  ActivityIndicator, ScrollView, Alert, TextInput,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { api, clearSession } from "../lib/api";
@@ -43,6 +43,7 @@ export default function DeliveryScreen() {
   const [assignment, setAssignment] = useState<AssignmentWithOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,12 +73,17 @@ export default function DeliveryScreen() {
   }
 
   async function handleDeliver() {
+    if (otpInput.length !== 4) {
+      Alert.alert("OTP Required", "Please enter the 4-digit OTP from the customer.");
+      return;
+    }
     setActionLoading(true);
     try {
-      await api.post(`/api/agents/assignments/${orderId}/deliver`);
+      await api.post(`/api/agents/assignments/${orderId}/deliver`, { otp: otpInput });
       router.replace("/(tabs)");
-    } catch {
-      Alert.alert("Error", "Could not mark as delivered.");
+    } catch (err: any) {
+      const msg = err.response?.data?.error ?? "Could not mark as delivered.";
+      Alert.alert("Error", msg);
       setActionLoading(false);
     }
   }
@@ -142,7 +148,23 @@ export default function DeliveryScreen() {
         }
         return (
           <View style={s.actionGroup}>
-            <TouchableOpacity style={s.primaryBtn} onPress={handleDeliver} disabled={actionLoading}>
+            <View style={s.otpRow}>
+              <Text style={s.otpLabel}>Customer OTP</Text>
+              <TextInput
+                style={s.otpInput}
+                value={otpInput}
+                onChangeText={(t) => setOtpInput(t.replace(/\D/g, "").slice(0, 4))}
+                placeholder="_ _ _ _"
+                placeholderTextColor="#555"
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+            </View>
+            <TouchableOpacity
+              style={[s.primaryBtn, otpInput.length !== 4 && s.btnDisabled]}
+              onPress={handleDeliver}
+              disabled={actionLoading || otpInput.length !== 4}
+            >
               <Text style={s.btnText}>Mark Delivered</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.absentBtn} onPress={() => callAndReload(`/api/agents/assignments/${orderId}/absent`)} disabled={actionLoading}>
@@ -158,9 +180,27 @@ export default function DeliveryScreen() {
         );
         if (trialDone) {
           return (
-            <TouchableOpacity style={s.primaryBtn} onPress={handleDeliver} disabled={actionLoading}>
-              <Text style={s.btnText}>Mark Delivered</Text>
-            </TouchableOpacity>
+            <View style={s.actionGroup}>
+              <View style={s.otpRow}>
+                <Text style={s.otpLabel}>Customer OTP</Text>
+                <TextInput
+                  style={s.otpInput}
+                  value={otpInput}
+                  onChangeText={(t) => setOtpInput(t.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="_ _ _ _"
+                  placeholderTextColor="#555"
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
+              <TouchableOpacity
+                style={[s.primaryBtn, otpInput.length !== 4 && s.btnDisabled]}
+                onPress={handleDeliver}
+                disabled={actionLoading || otpInput.length !== 4}
+              >
+                <Text style={s.btnText}>Mark Delivered</Text>
+              </TouchableOpacity>
+            </View>
           );
         }
         return (
@@ -245,4 +285,8 @@ const s = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
   doneText: { color: "#22c55e", fontSize: 20, fontWeight: "bold", textAlign: "center", marginTop: 24 },
   errorText: { color: "#ef4444", fontSize: 16 },
+  otpRow: { backgroundColor: "#1e1e1e", borderRadius: 10, padding: 16, marginBottom: 4 },
+  otpLabel: { color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 },
+  otpInput: { color: "#fff", fontSize: 32, fontWeight: "bold", letterSpacing: 10, textAlign: "center", borderBottomWidth: 2, borderBottomColor: "#3b82f6", paddingBottom: 4, fontVariant: ["tabular-nums"] },
+  btnDisabled: { backgroundColor: "#1e3a5f", opacity: 0.6 },
 });

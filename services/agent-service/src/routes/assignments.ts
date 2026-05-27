@@ -165,7 +165,19 @@ router.post("/:orderId/arrive", requireAuth, requireAgent, async (req, res) => {
 // POST /assignments/:orderId/deliver
 router.post("/:orderId/deliver", requireAuth, requireAgent, async (req, res) => {
   const { orderId } = req.params;
+  const { otp } = req.body as { otp?: string };
   const prisma = getPrisma();
+
+  if (!otp) {
+    return res.status(400).json({ error: "otp required" });
+  }
+
+  try {
+    await axios.post(`${ORDER_SERVICE_URL}/internal/orders/${orderId}/verify-delivery-otp`, { otp });
+  } catch (err: any) {
+    const message = err.response?.data?.error ?? "OTP verification failed";
+    return res.status(err.response?.status === 410 ? 410 : 400).json({ error: message });
+  }
 
   try {
     await transitionAssignment(orderId, "DELIVERED", req.user!.userId);

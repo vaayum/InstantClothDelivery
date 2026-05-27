@@ -175,6 +175,15 @@ export default function OrderTrackingScreen() {
         </MapView>
       )}
 
+      {/* Delivery OTP — shown only when agent has arrived */}
+      {currentStatus === "ARRIVED" && order.deliveryOtp && (
+        <View style={s.otpBox}>
+          <Text style={s.otpLabel}>Your delivery OTP</Text>
+          <Text style={s.otpCode}>{order.deliveryOtp}</Text>
+          <Text style={s.otpNote}>Share this code with your delivery agent</Text>
+        </View>
+      )}
+
       {/* Trial countdown */}
       {currentStatus === "TRIAL_IN_PROGRESS" && trialSeconds !== null && (
         <TrialCountdown seconds={trialSeconds} />
@@ -308,4 +317,8 @@ const s = StyleSheet.create({
   errorText: { color: "#ef4444", fontSize: 16, marginBottom: 16 },
   retryBtn: { borderWidth: 1, borderColor: "#555", borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: "#ccc", fontSize: 15 },
+  otpBox: { backgroundColor: "#0f2a0f", borderRadius: 12, padding: 20, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "#22c55e" },
+  otpLabel: { color: "#86efac", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 },
+  otpCode: { color: "#22c55e", fontSize: 48, fontWeight: "bold", letterSpacing: 12, fontVariant: ["tabular-nums"] },
+  otpNote: { color: "#4ade80", fontSize: 12, marginTop: 8, textAlign: "center" },
 });

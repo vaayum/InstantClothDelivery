@@ -29,6 +29,7 @@ export interface Order {
   customerId: string;
   warehouseId: string;
   status: OrderStatus;
+  isTryOrder: boolean;
   items: OrderItem[];
   deliveryAddress: string;
   totalAmount: number;
