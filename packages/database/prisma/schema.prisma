@@ -118,22 +118,25 @@ enum NotificationType {
 // ─── Users & Auth ─────────────────────────────────────────────────────────────
 
 model User {
-  id           String    @id @default(uuid())
-  phone        String    @unique
-  email        String?   @unique
-  name         String
-  role         UserRole  @default(CUSTOMER)
-  sizeProfile  Json?
-  stylePrefs   Json?
-  isActive     Boolean   @default(true)
-  fcmToken     String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                String     @id @default(uuid())
+  phone             String     @unique
+  email             String?    @unique
+  name              String
+  role              UserRole   @default(CUSTOMER)
+  sizeProfile       Json?
+  stylePrefs        Json?
+  isActive          Boolean    @default(true)
+  fcmToken          String?
+  pinnedWarehouseId String?
+  pinnedEtaMinutes  Int?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
-  addresses     Address[]
-  orders        Order[]
-  notifications Notification[]
-  subscription  Subscription?
+  addresses       Address[]
+  orders          Order[]
+  notifications   Notification[]
+  subscription    Subscription?
+  pinnedWarehouse Warehouse? @relation("UserPinnedWarehouse", fields: [pinnedWarehouseId], references: [id])
 
   @@map("users")
 }
@@ -184,10 +187,11 @@ model Warehouse {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  zone         Zone          @relation(fields: [zoneId], references: [id])
-  inventory    Inventory[]
-  orders       Order[]
-  pickingTasks PickingTask[]
+  zone          Zone          @relation(fields: [zoneId], references: [id])
+  inventory     Inventory[]
+  orders        Order[]
+  pickingTasks  PickingTask[]
+  pinnedByUsers User[]        @relation("UserPinnedWarehouse")
 
   @@map("warehouses")
 }
