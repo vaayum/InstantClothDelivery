@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import { requireAuth } from "@threaddash/auth";
 import authRouter from "./routes/auth";
 import addressesRouter from "./routes/addresses";
+import usersRouter from "./routes/users";
 import { PrismaClient } from "@prisma/client";
 
 dotenv.config();
@@ -22,6 +23,7 @@ app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
 app.use("/auth", authRouter);
 app.use("/api/addresses", addressesRouter);
+app.use("/api/users", usersRouter);
 
 // inject pinnedWarehouseId into catalog proxy requests
 app.use("/api/catalog", requireAuth, async (req: any, _res: any, next: any) => {
@@ -40,8 +42,12 @@ app.get("/health", (_req, res) =>
   res.json({ status: "ok", service: "api-gateway", ts: new Date().toISOString() })
 );
 
-app.get("/api/me", requireAuth, (req, res) => {
-  res.json({ user: (req as any).user });
+app.get("/api/me", requireAuth, async (req: any, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.userId },
+    select: { pinnedWarehouseId: true },
+  });
+  res.json({ user: { ...req.user, pinnedWarehouseId: user?.pinnedWarehouseId ?? null } });
 });
 
 const routes: Record<string, string> = {
