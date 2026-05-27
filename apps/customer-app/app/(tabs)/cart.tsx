@@ -94,9 +94,36 @@ export default function CartScreen() {
       }
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
-      if (status === 409) Alert.alert("Out of stock", "One or more items are not available.");
-      else if (status === 401) { await clearSession(); router.replace("/login"); }
-      else Alert.alert("Error", "Could not place order. Please try again.");
+      const errorCode = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
+
+      if (status === 400 && errorCode === "no_delivery_address") {
+        Alert.alert(
+          "No delivery address",
+          "Please set a delivery address first.",
+          [
+            { text: "Go to Profile", onPress: () => router.push("/(tabs)/profile") },
+            { text: "Cancel", style: "cancel" },
+          ]
+        );
+      } else if (status === 409 && errorCode === "items_unavailable") {
+        const unavailableSkuIds: string[] =
+          (err as { response?: { data?: { unavailableSkuIds?: string[] } } }).response?.data?.unavailableSkuIds ?? [];
+        const names = items
+          .filter((i) => unavailableSkuIds.includes(i.skuId))
+          .map((i) => `${i.productName} (${i.size})`)
+          .join(", ");
+        Alert.alert(
+          "Item went out of stock",
+          `${names || "One or more items"} just went out of stock. Remove it to continue.`
+        );
+      } else if (status === 409) {
+        Alert.alert("Out of stock", "One or more items are not available.");
+      } else if (status === 401) {
+        await clearSession();
+        router.replace("/login");
+      } else {
+        Alert.alert("Error", "Could not place order. Please try again.");
+      }
     } finally {
       setPlacing(false);
     }
