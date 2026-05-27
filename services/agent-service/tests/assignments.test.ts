@@ -137,6 +137,7 @@ describe("POST /assignments/:orderId/decline", () => {
     mockPrisma.deliveryAssignment.findUnique.mockResolvedValue({
       ...BASE_ASSIGNMENT,
       status: "ASSIGNED",
+      order: { warehouseId: "wh-1", userId: "user-1", isTryOrder: false },
     });
     mockPrisma.deliveryAssignment.findUniqueOrThrow.mockResolvedValue({
       ...BASE_ASSIGNMENT,
@@ -311,7 +312,7 @@ describe("POST /assignments/:orderId/deliver", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/api/agents/assignments/order-1/deliver");
+    const res = await request(app).post("/api/agents/assignments/order-1/deliver").send({ otp: "123456" });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true });
@@ -324,9 +325,8 @@ describe("POST /assignments/:orderId/deliver", () => {
         }),
       })
     );
-    expect(mockAxios.patch).toHaveBeenCalledWith(
-      expect.stringContaining("order-1"),
-      { status: "COMPLETED" }
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining("order-1/finalize")
     );
   });
 
@@ -338,7 +338,7 @@ describe("POST /assignments/:orderId/deliver", () => {
     });
     mockGetPrisma.mockReturnValue(mockPrisma);
 
-    const res = await request(app).post("/api/agents/assignments/order-1/deliver");
+    const res = await request(app).post("/api/agents/assignments/order-1/deliver").send({ otp: "123456" });
 
     expect(res.status).toBe(409);
     expect(res.body).toHaveProperty("error");
@@ -417,9 +417,19 @@ describe("POST /assignments/:orderId/absent", () => {
     // Should call transitionAssignment (which uses findUniqueOrThrow)
     expect(mockPrisma.deliveryAssignment.findUniqueOrThrow).toHaveBeenCalled();
 
-    // Should POST to order-service mark-absent
+    // Should PATCH to order-service with RESCHEDULED status
+    expect(mockAxios.patch).toHaveBeenCalledWith(
+      expect.stringContaining("order-1"),
+      { status: "RESCHEDULED" }
+    );
+    // Should POST to payment service for no-show charge
     expect(mockAxios.post).toHaveBeenCalledWith(
-      expect.stringContaining("order-1/mark-absent")
+      expect.stringContaining("charge-noshow"),
+      expect.objectContaining({ orderId: "order-1", amount: 9900 })
+    );
+    // Should update agent status to AVAILABLE
+    expect(mockPrisma.agent.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "agent-1" }, data: { status: "AVAILABLE" } })
     );
   });
 
