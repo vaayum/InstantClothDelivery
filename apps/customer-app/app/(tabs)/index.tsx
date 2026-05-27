@@ -1,18 +1,37 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, ActivityIndicator, RefreshControl,
+  StyleSheet, ActivityIndicator, RefreshControl, Alert,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import * as Location from "expo-location";
 import { api, clearSession } from "../lib/api";
-import type { Product } from "../lib/types";
+import type { Product, MeResponse } from "../lib/types";
 
 export default function HomeScreen() {
+  const [pinnedWarehouseId, setPinnedWarehouseId] = useState<string | null | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  const checkPin = useCallback(async () => {
+    try {
+      const res = await api.get<MeResponse>("/api/me");
+      setPinnedWarehouseId(res.data.user.pinnedWarehouseId);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 401) { await clearSession(); router.replace("/login"); }
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkPin();
+    }, [checkPin])
+  );
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -30,16 +49,75 @@ export default function HomeScreen() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (pinnedWarehouseId) load();
+  }, [pinnedWarehouseId, load]);
+
+  async function useCurrentLocation() {
+    setLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission denied", "Location permission is required.");
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = pos.coords;
+      const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const r = results[0];
+      const formattedAddress = r
+        ? [r.name, r.street, r.district, r.city, r.region].filter(Boolean).join(", ")
+        : `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
+      const saveRes = await api.post<{ pinnedWarehouseId: string | null; deliveryAvailable: boolean }>(
+        "/api/addresses",
+        { label: "Home", formattedAddress, lat: latitude, lng: longitude }
+      );
+
+      if (!saveRes.data.deliveryAvailable) {
+        Alert.alert(
+          "Not available yet",
+          "Delivery is not available at your location. Try entering an address manually."
+        );
+        return;
+      }
+      setPinnedWarehouseId(saveRes.data.pinnedWarehouseId);
+    } catch {
+      Alert.alert("Error", "Could not get location. Please try again.");
+    } finally {
+      setLocating(false);
+    }
+  }
+
+  if (pinnedWarehouseId === undefined) {
+    return <View style={s.center}><ActivityIndicator size="large" color="#fff" /></View>;
+  }
+
+  if (pinnedWarehouseId === null) {
+    return (
+      <View style={s.gate}>
+        <Text style={s.gateTitle}>Where should we deliver?</Text>
+        <Text style={s.gateSub}>Set your location to see what's available near you.</Text>
+        <TouchableOpacity style={s.gateBtn} onPress={useCurrentLocation} disabled={locating}>
+          {locating
+            ? <ActivityIndicator color="#000" />
+            : <Text style={s.gateBtnText}>Use my location</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity style={s.gateSecondary} onPress={() => router.push("/(tabs)/profile")}>
+          <Text style={s.gateSecondaryText}>Enter address manually</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return <View style={s.center}><ActivityIndicator size="large" color="#fff" /></View>;
+  }
 
   const filtered = products.filter((p) => {
     const q = query.toLowerCase();
     return !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
   });
-
-  if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#fff" /></View>;
-  }
 
   return (
     <View style={s.container}>
@@ -82,6 +160,16 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0a0a" },
   center: { flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center" },
+  gate: { flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center", padding: 32 },
+  gateTitle: { color: "#fff", fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 12 },
+  gateSub: { color: "#666", fontSize: 15, textAlign: "center", marginBottom: 32 },
+  gateBtn: {
+    backgroundColor: "#fff", borderRadius: 14, paddingVertical: 16,
+    alignItems: "center", width: "100%", marginBottom: 12,
+  },
+  gateBtnText: { color: "#000", fontWeight: "bold", fontSize: 16 },
+  gateSecondary: { paddingVertical: 12 },
+  gateSecondaryText: { color: "#3b82f6", fontSize: 15, fontWeight: "600" },
   heading: { fontSize: 28, fontWeight: "bold", color: "#fff", padding: 20, paddingBottom: 12 },
   search: {
     backgroundColor: "#1a1a1a", color: "#fff", borderRadius: 10,
