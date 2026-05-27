@@ -73,4 +73,28 @@ router.post("/release", async (req, res) => {
   }
 });
 
+router.get("/availability", async (req, res) => {
+  const { warehouseId, skuIds } = req.query as { warehouseId?: string; skuIds?: string };
+  if (!warehouseId || !skuIds) {
+    return res.status(400).json({ error: "warehouseId and skuIds are required" });
+  }
+
+  const skuIdList = skuIds.split(",").filter(Boolean);
+  const prisma = getPrisma();
+
+  const rows = await prisma.inventory.findMany({
+    where: { warehouseId, skuId: { in: skuIdList } },
+    select: { skuId: true, quantityAvailable: true },
+  });
+
+  const rowMap = new Map(rows.map((r) => [r.skuId, r.quantityAvailable]));
+  const result: Record<string, { quantityAvailable: number; available: boolean }> = {};
+  for (const skuId of skuIdList) {
+    const qty = rowMap.get(skuId) ?? 0;
+    result[skuId] = { quantityAvailable: qty, available: qty > 0 };
+  }
+
+  return res.json(result);
+});
+
 export default router;

@@ -85,3 +85,53 @@ describe("POST /inventory/release", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("GET /inventory/availability", () => {
+  it("returns availability map keyed by skuId", async () => {
+    const mockPrisma = {
+      inventory: {
+        findMany: jest.fn().mockResolvedValue([
+          { skuId: "sku-1", quantityAvailable: 3 },
+          { skuId: "sku-2", quantityAvailable: 0 },
+        ]),
+      },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+
+    const res = await request(app)
+      .get("/inventory/availability")
+      .query({ warehouseId: "wh-hsr", skuIds: "sku-1,sku-2" });
+
+    expect(res.status).toBe(200);
+    expect(res.body["sku-1"]).toEqual({ quantityAvailable: 3, available: true });
+    expect(res.body["sku-2"]).toEqual({ quantityAvailable: 0, available: false });
+  });
+
+  it("returns available: false for skuIds with no inventory row", async () => {
+    const mockPrisma = {
+      inventory: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+
+    const res = await request(app)
+      .get("/inventory/availability")
+      .query({ warehouseId: "wh-hsr", skuIds: "sku-ghost" });
+
+    expect(res.status).toBe(200);
+    expect(res.body["sku-ghost"]).toEqual({ quantityAvailable: 0, available: false });
+  });
+
+  it("returns 400 when warehouseId is missing", async () => {
+    const res = await request(app)
+      .get("/inventory/availability")
+      .query({ skuIds: "sku-1" });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when skuIds is missing", async () => {
+    const res = await request(app)
+      .get("/inventory/availability")
+      .query({ warehouseId: "wh-hsr" });
+    expect(res.status).toBe(400);
+  });
+});
