@@ -5,10 +5,16 @@ import { getToken } from "../lib/api";
 
 const REALTIME_URL = process.env.EXPO_PUBLIC_REALTIME_URL ?? "http://localhost:3005";
 
+export interface TrialItemDecision {
+  skuId: string;
+  status: "KEPT" | "RETURNED";
+}
+
 interface SocketState {
   status: OrderStatus | null;
   agentLocation: AgentLocation | null;
   trialSecondsRemaining: number | null;
+  trialItemDecisions: TrialItemDecision[] | null;
 }
 
 export function useOrderSocket(orderId: string | null): SocketState {
@@ -16,6 +22,7 @@ export function useOrderSocket(orderId: string | null): SocketState {
     status: null,
     agentLocation: null,
     trialSecondsRemaining: null,
+    trialItemDecisions: null,
   });
   const socketRef = useRef<Socket | null>(null);
 
@@ -55,6 +62,12 @@ export function useOrderSocket(orderId: string | null): SocketState {
       socket.on("trial:timer", (payload: { orderId: string; secondsRemaining: number }) => {
         if (payload.orderId === orderId) {
           setState((prev) => ({ ...prev, trialSecondsRemaining: payload.secondsRemaining }));
+        }
+      });
+
+      socket.on("trial:item-decision", (payload: { orderId: string; decisions: TrialItemDecision[] }) => {
+        if (payload.orderId === orderId) {
+          setState((prev) => ({ ...prev, trialItemDecisions: payload.decisions }));
         }
       });
     });

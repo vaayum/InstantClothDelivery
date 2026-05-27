@@ -9,6 +9,7 @@ import { transitionOrder } from "../transitions";
 const router = Router();
 const WAREHOUSE_URL = process.env.WAREHOUSE_SERVICE_URL ?? "http://localhost:3002";
 const PAYMENT_URL = process.env.PAYMENT_SERVICE_URL ?? "http://localhost:3004";
+const REALTIME_URL = process.env.REALTIME_SERVICE_URL ?? "http://localhost:3005";
 
 router.post("/:id/trial/start", requireAuth, async (req, res) => {
   const { id } = req.params;
@@ -97,6 +98,14 @@ router.post("/:id/trial/complete", requireAuth, async (req, res) => {
       returnedSkuIds,
       timestamp: new Date().toISOString(),
     });
+
+    // Broadcast final item decisions to the customer's tracking screen
+    const decisions = order.items
+      .filter((i) => keptSkuIds.includes(i.skuId) || returnedSkuIds.includes(i.skuId))
+      .map((i) => ({ skuId: i.skuId, status: keptSkuIds.includes(i.skuId) ? "KEPT" : "RETURNED" }));
+    axios
+      .post(`${REALTIME_URL}/emit/trial-item-decision`, { orderId: id, decisions })
+      .catch(() => {});
 
     const redis = getRedis();
     await redis.del(`sla:order:${id}`);

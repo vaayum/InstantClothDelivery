@@ -6,7 +6,7 @@ import {
 import MapView, { Marker } from "react-native-maps";
 import { router, useLocalSearchParams } from "expo-router";
 import { api, clearSession } from "../lib/api";
-import { useOrderSocket } from "../hooks/useSocket";
+import { useOrderSocket, type TrialItemDecision } from "../hooks/useSocket";
 import type { Order, OrderStatus } from "../lib/types";
 
 const TIMELINE: OrderStatus[] = [
@@ -64,7 +64,7 @@ export default function OrderTrackingScreen() {
   const [error, setError] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  const { status: socketStatus, agentLocation, trialSecondsRemaining } = useOrderSocket(orderId ?? null);
+  const { status: socketStatus, agentLocation, trialSecondsRemaining, trialItemDecisions } = useOrderSocket(orderId ?? null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -187,6 +187,31 @@ export default function OrderTrackingScreen() {
       {/* Trial countdown */}
       {currentStatus === "TRIAL_IN_PROGRESS" && trialSeconds !== null && (
         <TrialCountdown seconds={trialSeconds} />
+      )}
+
+      {/* Live trial item decisions — shown when agent submits decisions */}
+      {currentStatus === "TRIAL_IN_PROGRESS" && order.isTryOrder && trialItemDecisions && (
+        <View style={s.card}>
+          <Text style={s.cardLabel}>Item Decisions</Text>
+          {order.items.map((item) => {
+            const decision = trialItemDecisions.find((d: TrialItemDecision) => d.skuId === item.skuId);
+            const keeping = decision?.status === "KEPT";
+            const decided = !!decision;
+            return (
+              <View key={item.id} style={[s.itemRow, decided && { borderBottomColor: keeping ? "#22c55e33" : "#ef444433" }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.itemName}>{item.productName}</Text>
+                  <Text style={s.itemMeta}>{item.size} · ₹{(item.price / 100).toFixed(0)}</Text>
+                </View>
+                {decided && (
+                  <View style={[s.decisionBadge, keeping ? s.badgeKeep : s.badgeReturn]}>
+                    <Text style={s.badgeText}>{keeping ? "KEPT" : "RETURNED"}</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
       )}
 
       {/* Status timeline */}
@@ -317,6 +342,10 @@ const s = StyleSheet.create({
   errorText: { color: "#ef4444", fontSize: 16, marginBottom: 16 },
   retryBtn: { borderWidth: 1, borderColor: "#555", borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: "#ccc", fontSize: 15 },
+  decisionBadge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeKeep: { backgroundColor: "#22c55e" },
+  badgeReturn: { backgroundColor: "#374151" },
+  badgeText: { color: "#fff", fontWeight: "bold", fontSize: 11 },
   otpBox: { backgroundColor: "#0f2a0f", borderRadius: 12, padding: 20, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "#22c55e" },
   otpLabel: { color: "#86efac", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 },
   otpCode: { color: "#22c55e", fontSize: 48, fontWeight: "bold", letterSpacing: 12, fontVariant: ["tabular-nums"] },

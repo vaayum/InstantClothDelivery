@@ -39,6 +39,12 @@ app.post("/emit/trial-timer", (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/emit/trial-item-decision", (req, res) => {
+  const { orderId, decisions } = req.body as { orderId: string; decisions: { skuId: string; status: string }[] };
+  io.to(`order:${orderId}`).emit("trial:item-decision", { orderId, decisions });
+  res.json({ ok: true });
+});
+
 async function startRabbitMQConsumer() {
   const EXCHANGE = "threaddash";
   const RABBITMQ_URL = process.env.RABBITMQ_URL ?? "amqp://guest:guest@localhost:5672";
