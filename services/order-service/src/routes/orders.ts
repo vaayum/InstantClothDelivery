@@ -8,7 +8,6 @@ import { PaymentMethod } from "@prisma/client";
 
 const router = Router();
 
-const ROUTING_URL = process.env.ROUTING_SERVICE_URL ?? "http://localhost:8000";
 const WAREHOUSE_URL = process.env.WAREHOUSE_SERVICE_URL ?? "http://localhost:3002";
 const PAYMENT_URL = process.env.PAYMENT_SERVICE_URL ?? "http://localhost:3004";
 
@@ -38,37 +37,44 @@ router.post("/", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Address not found" });
   }
 
-  const warehouses = await prisma.warehouse.findMany({
-    where: { status: "ACTIVE" },
-    select: { id: true, lat: true, lng: true, activeOrderCount: true },
+  const user = await (prisma.user as any).findUnique({
+    where: { id: userId },
+    select: { pinnedWarehouseId: true, pinnedEtaMinutes: true },
   });
-  if (!warehouses.length) {
-    return res.status(503).json({ error: "No warehouses available" });
+  if (!user?.pinnedWarehouseId) {
+    return res.status(400).json({ error: "no_delivery_address" });
+  }
+  const { pinnedWarehouseId, pinnedEtaMinutes } = user as {
+    pinnedWarehouseId: string;
+    pinnedEtaMinutes: number | null;
+  };
+
+  const warehouse = await prisma.warehouse.findUnique({
+    where: { id: pinnedWarehouseId },
+    select: { status: true },
+  });
+  if (!warehouse || warehouse.status !== "ACTIVE") {
+    return res.status(503).json({ error: "warehouse_unavailable" });
   }
 
-  let routingResult: { warehouse_id: string; eta_minutes: number };
+  let availabilityData: Record<string, { available: boolean }> = {};
   try {
-    const { data } = await axios.post(`${ROUTING_URL}/select-warehouse`, {
-      delivery_coords: { lat: address.lat, lng: address.lng },
-      warehouses: warehouses.map((w) => ({
-        warehouse_id: w.id,
-        lat: w.lat,
-        lng: w.lng,
-        active_order_count: w.activeOrderCount,
-        has_stock: true,
-      })),
+    const { data } = await axios.get(`${WAREHOUSE_URL}/inventory/availability`, {
+      params: { warehouseId: pinnedWarehouseId, skuIds: skuIds.join(",") },
     });
-    if (!data.warehouse_id) {
-      return res.status(503).json({ error: "No warehouse available for delivery area" });
-    }
-    routingResult = data;
+    availabilityData = data;
   } catch {
-    return res.status(503).json({ error: "Routing service unavailable" });
+    return res.status(503).json({ error: "Inventory service unavailable" });
+  }
+
+  const unavailableSkuIds = skuIds.filter((id) => !availabilityData[id]?.available);
+  if (unavailableSkuIds.length > 0) {
+    return res.status(409).json({ error: "items_unavailable", unavailableSkuIds });
   }
 
   const reserveItems = items.map((i) => ({
     skuId: i.skuId,
-    warehouseId: routingResult.warehouse_id,
+    warehouseId: pinnedWarehouseId,
     quantity: i.quantity,
   }));
 
@@ -76,8 +82,11 @@ router.post("/", requireAuth, async (req, res) => {
     await axios.post(`${WAREHOUSE_URL}/inventory/reserve`, { orderId: "pending", items: reserveItems });
   } catch (err: any) {
     const status = err.response?.status === 409 ? 409 : 503;
-    const message = err.response?.data?.error ?? "Inventory reservation failed";
-    return res.status(status).json({ error: message });
+    const body =
+      err.response?.status === 409
+        ? { error: "items_unavailable", unavailableSkuIds: skuIds }
+        : { error: "Inventory reservation failed" };
+    return res.status(status).json(body);
   }
 
   const totalAmount = items.reduce((sum, item) => {
@@ -92,7 +101,7 @@ router.post("/", requireAuth, async (req, res) => {
       data: {
         userId,
         addressId,
-        warehouseId: routingResult.warehouse_id,
+        warehouseId: pinnedWarehouseId,
         paymentMethod,
         isTryOrder,
         totalAmount,
@@ -107,13 +116,11 @@ router.post("/", requireAuth, async (req, res) => {
       },
       include: { items: true },
     });
-  } catch (err) {
+  } catch {
     await axios.post(`${WAREHOUSE_URL}/inventory/release`, { items: reserveItems }).catch(() => {});
     return res.status(500).json({ error: "Order creation failed" });
   }
 
-  // For prepaid methods, await Razorpay order creation so razorpayOrderId is in the response.
-  // COD doesn't need Razorpay.
   let razorpayOrderId: string | null = null;
   if (paymentMethod !== "COD") {
     try {
@@ -128,13 +135,13 @@ router.post("/", requireAuth, async (req, res) => {
   }
 
   await prisma.warehouse.update({
-    where: { id: routingResult.warehouse_id },
+    where: { id: pinnedWarehouseId },
     data: { activeOrderCount: { increment: 1 } },
   });
 
   await publishEvent("order.placed", {
     orderId: order.id,
-    warehouseId: routingResult.warehouse_id,
+    warehouseId: pinnedWarehouseId,
     userId,
     customerId: userId,
     isTryOrder,
@@ -144,7 +151,7 @@ router.post("/", requireAuth, async (req, res) => {
   const redis = getRedis();
   await redis.set(`sla:order:${order.id}`, new Date().toISOString(), "EX", 7200);
 
-  return res.status(201).json({ ...order, estimatedMinutes: routingResult.eta_minutes, razorpayOrderId });
+  return res.status(201).json({ ...order, estimatedMinutes: pinnedEtaMinutes, razorpayOrderId });
 });
 
 router.get("/", requireAuth, async (req, res) => {

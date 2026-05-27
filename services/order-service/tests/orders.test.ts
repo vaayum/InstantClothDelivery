@@ -39,7 +39,7 @@ const SEED_SKUS = [
   { id: "sku-os-s", productId: "prod-os", product: { id: "prod-os", price: 129900 } },
 ];
 const SEED_ADDRESS = { id: "addr-1", userId: "user-1", lat: 12.9352, lng: 77.6245, formattedAddress: "Koramangala" };
-const SEED_WAREHOUSE = { id: "wh-hsr", lat: 12.9116, lng: 77.6389, activeOrderCount: 2, status: "ACTIVE" };
+const SEED_USER = { id: "user-1", pinnedWarehouseId: "wh-hsr", pinnedEtaMinutes: 22 };
 const CREATED_ORDER = {
   id: "order-new", userId: "user-1", addressId: "addr-1", warehouseId: "wh-hsr",
   status: "PENDING", paymentMethod: "UPI", isTryOrder: false, totalAmount: 129900, deliveryFee: 0,
@@ -50,18 +50,22 @@ function setupHappyPath() {
   const mockPrisma = {
     sku: { findMany: jest.fn().mockResolvedValue(SEED_SKUS) },
     address: { findFirst: jest.fn().mockResolvedValue(SEED_ADDRESS) },
+    user: { findUnique: jest.fn().mockResolvedValue(SEED_USER) },
     warehouse: {
-      findMany: jest.fn().mockResolvedValue([SEED_WAREHOUSE]),
+      findUnique: jest.fn().mockResolvedValue({ id: "wh-hsr", status: "ACTIVE" }),
       update: jest.fn().mockResolvedValue({}),
     },
     order: { create: jest.fn().mockResolvedValue(CREATED_ORDER) },
   };
   mockGetPrisma.mockReturnValue(mockPrisma as any);
   mockGetRedis.mockReturnValue(mockRedis as any);
+  // availability pre-flight GET, then reserve POST, then payment POST (catch-all)
+  mockAxios.get = jest.fn().mockResolvedValueOnce({
+    data: { "sku-os-s": { quantityAvailable: 5, available: true } },
+  }) as any;
   mockAxios.post
-    .mockResolvedValueOnce({ data: { warehouse_id: "wh-hsr", eta_minutes: 22 } })
     .mockResolvedValueOnce({ data: { success: true } })
-    .mockResolvedValue({ data: {} }); // catch-all for fire-and-forget payment call
+    .mockResolvedValue({ data: {} });
   return mockPrisma;
 }
 
@@ -116,7 +120,8 @@ describe("POST /", () => {
     const mockPrisma = {
       sku: { findMany: jest.fn().mockResolvedValue([]) },
       address: { findFirst: jest.fn().mockResolvedValue(SEED_ADDRESS) },
-      warehouse: { findMany: jest.fn().mockResolvedValue([SEED_WAREHOUSE]) },
+      user: { findUnique: jest.fn() },
+      warehouse: { findUnique: jest.fn(), update: jest.fn() },
       order: { create: jest.fn() },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
@@ -126,35 +131,71 @@ describe("POST /", () => {
     expect(res.body.error).toMatch(/SKU/);
   });
 
-  it("returns 409 when warehouse-service reports insufficient stock", async () => {
+  it("returns 409 when warehouse-service reports insufficient stock on reserve", async () => {
     const mockPrisma = {
       sku: { findMany: jest.fn().mockResolvedValue(SEED_SKUS) },
       address: { findFirst: jest.fn().mockResolvedValue(SEED_ADDRESS) },
-      warehouse: { findMany: jest.fn().mockResolvedValue([SEED_WAREHOUSE]), update: jest.fn() },
+      user: { findUnique: jest.fn().mockResolvedValue(SEED_USER) },
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({ id: "wh-hsr", status: "ACTIVE" }),
+        update: jest.fn(),
+      },
       order: { create: jest.fn() },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
     mockGetRedis.mockReturnValue(mockRedis as any);
+    mockAxios.get = jest.fn().mockResolvedValueOnce({
+      data: { "sku-os-s": { quantityAvailable: 5, available: true } },
+    }) as any;
     mockAxios.post
-      .mockResolvedValueOnce({ data: { warehouse_id: "wh-hsr", eta_minutes: 22 } })
       .mockRejectedValueOnce({ response: { status: 409, data: { error: "Insufficient stock for SKU sku-os-s" } } });
     const res = await request(app).post("/api/orders").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
     expect(res.status).toBe(409);
     expect(mockPrisma.order.create).not.toHaveBeenCalled();
   });
 
-  it("returns 503 when routing-service is unavailable", async () => {
+  it("returns 400 when user has no pinned warehouse", async () => {
     const mockPrisma = {
       sku: { findMany: jest.fn().mockResolvedValue(SEED_SKUS) },
       address: { findFirst: jest.fn().mockResolvedValue(SEED_ADDRESS) },
-      warehouse: { findMany: jest.fn().mockResolvedValue([SEED_WAREHOUSE]) },
+      user: { findUnique: jest.fn().mockResolvedValue({ ...SEED_USER, pinnedWarehouseId: null }) },
+      warehouse: { findUnique: jest.fn(), update: jest.fn() },
       order: { create: jest.fn() },
     };
     mockGetPrisma.mockReturnValue(mockPrisma as any);
     mockGetRedis.mockReturnValue(mockRedis as any);
-    mockAxios.post.mockRejectedValueOnce(new Error("ECONNREFUSED"));
-    const res = await request(app).post("/api/orders").send({ items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI" });
-    expect(res.status).toBe(503);
+    const res = await request(app).post("/api/orders").send({
+      items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("no_delivery_address");
+  });
+
+  it("returns 409 with unavailableSkuIds when pre-flight detects OOS", async () => {
+    const mockPrisma = {
+      sku: { findMany: jest.fn().mockResolvedValue(SEED_SKUS) },
+      address: { findFirst: jest.fn().mockResolvedValue(SEED_ADDRESS) },
+      user: { findUnique: jest.fn().mockResolvedValue(SEED_USER) },
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({ id: "wh-hsr", status: "ACTIVE" }),
+        update: jest.fn(),
+      },
+      order: { create: jest.fn() },
+    };
+    mockGetPrisma.mockReturnValue(mockPrisma as any);
+    mockGetRedis.mockReturnValue(mockRedis as any);
+    mockAxios.get = jest.fn().mockResolvedValueOnce({
+      data: { "sku-os-s": { quantityAvailable: 0, available: false } },
+    }) as any;
+
+    const res = await request(app).post("/api/orders").send({
+      items: [{ skuId: "sku-os-s", quantity: 1 }], addressId: "addr-1", paymentMethod: "UPI",
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("items_unavailable");
+    expect(res.body.unavailableSkuIds).toContain("sku-os-s");
+    expect(mockPrisma.order.create).not.toHaveBeenCalled();
   });
 });
 
