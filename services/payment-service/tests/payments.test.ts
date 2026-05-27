@@ -1,5 +1,8 @@
 jest.mock("../src/lib/db", () => ({ getPrisma: jest.fn() }));
 jest.mock("../src/lib/razorpay", () => ({ getRazorpay: jest.fn() }));
+jest.mock("../src/lib/rabbitmq", () => ({
+  publishEvent: jest.fn().mockResolvedValue(undefined),
+}));
 
 import request from "supertest";
 import crypto from "crypto";
@@ -20,6 +23,7 @@ function makeMockPrisma(orderOverrides: any = {}) {
   return {
     order: {
       findUnique: jest.fn().mockResolvedValue(order),
+      findFirst: jest.fn().mockResolvedValue(order),
       update: jest.fn().mockResolvedValue(order),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
