@@ -15,6 +15,9 @@ export interface Sku {
   size: string;
   color: string;
   barcode: string;
+  available?: boolean;
+  quantityAvailable?: number;
+  alternativeWarehouseId?: string;
 }
 
 export interface Product {
@@ -75,4 +78,13 @@ export interface AgentLocation {
   lat: number;
   lng: number;
   timestamp: string;
+}
+
+export interface MeResponse {
+  user: {
+    userId: string;
+    role: string;
+    phone: string;
+    pinnedWarehouseId: string | null;
+  };
 }
