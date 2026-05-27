@@ -7,7 +7,7 @@ jest.mock("axios");
 import axios from "axios";
 import { getPrisma } from "../src/lib/db";
 import { publishEvent } from "../src/lib/rabbitmq";
-import { handleOrderReadyForPickup } from "../src/consumer";
+import { handleOrderPlaced } from "../src/consumer";
 
 const mockAxios = axios as jest.Mocked<typeof axios>;
 const mockGetPrisma = getPrisma as jest.MockedFunction<typeof getPrisma>;
@@ -68,7 +68,7 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-describe("handleOrderReadyForPickup", () => {
+describe("handleOrderPlaced", () => {
   it("happy path: finds order, finds eligible agents, calls routing-service, creates assignment, updates agent, patches order-service, publishes event", async () => {
     const mockPrisma = makeMockPrisma();
     mockGetPrisma.mockReturnValue(mockPrisma);
@@ -92,7 +92,7 @@ describe("handleOrderReadyForPickup", () => {
     });
     mockAxios.patch = jest.fn().mockResolvedValue({ data: {} });
 
-    await handleOrderReadyForPickup(PAYLOAD);
+    await handleOrderPlaced(PAYLOAD);
 
     // Loads order
     expect(mockPrisma.order.findUniqueOrThrow).toHaveBeenCalledWith(
@@ -158,7 +158,7 @@ describe("handleOrderReadyForPickup", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
     mockAxios.patch = jest.fn().mockResolvedValue({ data: {} });
 
-    await expect(handleOrderReadyForPickup(PAYLOAD)).resolves.toBeUndefined();
+    await expect(handleOrderPlaced(PAYLOAD)).resolves.toBeUndefined();
 
     expect(mockAxios.post).not.toHaveBeenCalled();
     expect(mockPublishEvent).toHaveBeenCalledWith(
@@ -176,7 +176,7 @@ describe("handleOrderReadyForPickup", () => {
     mockGetPrisma.mockReturnValue(mockPrisma);
     mockAxios.patch = jest.fn().mockResolvedValue({ data: {} });
 
-    await expect(handleOrderReadyForPickup(PAYLOAD)).resolves.toBeUndefined();
+    await expect(handleOrderPlaced(PAYLOAD)).resolves.toBeUndefined();
 
     expect(mockAxios.post).not.toHaveBeenCalled();
     expect(mockPublishEvent).toHaveBeenCalledWith(
@@ -194,7 +194,7 @@ describe("handleOrderReadyForPickup", () => {
     });
     mockAxios.patch = jest.fn().mockResolvedValue({ data: {} });
 
-    await expect(handleOrderReadyForPickup(PAYLOAD)).resolves.toBeUndefined();
+    await expect(handleOrderPlaced(PAYLOAD)).resolves.toBeUndefined();
 
     expect(mockPublishEvent).toHaveBeenCalledWith(
       "assignment.no_agent_available",
@@ -222,7 +222,7 @@ describe("handleOrderReadyForPickup", () => {
     mockAxios.patch = jest.fn().mockRejectedValue(new Error("Order service down"));
 
     // Should not throw — order-service PATCH failure is non-fatal
-    await expect(handleOrderReadyForPickup(PAYLOAD)).resolves.toBeUndefined();
+    await expect(handleOrderPlaced(PAYLOAD)).resolves.toBeUndefined();
 
     // Transaction still ran
     expect(mockPrisma.$transaction).toHaveBeenCalled();
