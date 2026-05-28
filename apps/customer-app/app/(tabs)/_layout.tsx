@@ -21,15 +21,29 @@ function CartBadge() {
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="index" options={{ title: "Home" }} />
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: "#ffffff",
+          borderTopColor: "#e5eeff",
+          borderTopWidth: 1,
+          height: 60,
+          paddingBottom: 8,
+        },
+        tabBarActiveTintColor: "#5300b7",
+        tabBarInactiveTintColor: "#7b7486",
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+      }}
+    >
+      <Tabs.Screen name="index" options={{ title: "Browse" }} />
       <Tabs.Screen
         name="cart"
         options={{
-          title: "Cart",
+          title: "Bag",
           tabBarIcon: ({ color }) => (
             <View>
-              <Text style={{ fontSize: 20, color }}>🛒</Text>
+              <Text style={{ fontSize: 20, color }}>🛍</Text>
               <CartBadge />
             </View>
           ),

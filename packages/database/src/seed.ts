@@ -8,6 +8,7 @@ type ProductSeed = {
   name: string;
   brand: string;
   category: string;
+  gender: string;
   price: number;
   skus: SkuSeed[];
 };
@@ -18,6 +19,7 @@ const products: ProductSeed[] = [
     name: "Classic Oxford Shirt",
     brand: "H&M",
     category: "Shirts",
+    gender: "Men",
     price: 149900,
     skus: [
       { id: "sku-os-s", size: "S", color: "White", barcode: "HMOS-WHT-S" },
@@ -30,6 +32,7 @@ const products: ProductSeed[] = [
     name: "Slim Fit Chinos",
     brand: "Zara",
     category: "Trousers",
+    gender: "Men",
     price: 199900,
     skus: [
       { id: "sku-sc-30", size: "30", color: "Navy", barcode: "ZARC-NAV-30" },
@@ -41,6 +44,7 @@ const products: ProductSeed[] = [
     name: "Floral Wrap Dress",
     brand: "Mango",
     category: "Dresses",
+    gender: "Women",
     price: 249900,
     skus: [
       { id: "sku-fd-s", size: "S", color: "Floral Print", barcode: "MNFD-FLR-S" },
@@ -52,6 +56,7 @@ const products: ProductSeed[] = [
     name: "Crew Neck T-Shirt",
     brand: "Uniqlo",
     category: "T-Shirts",
+    gender: "Unisex",
     price: 99900,
     skus: [
       { id: "sku-ct-m", size: "M", color: "Black", barcode: "UNBT-BLK-M" },
@@ -64,6 +69,7 @@ const products: ProductSeed[] = [
     name: "Linen Straight Kurta",
     brand: "Fabindia",
     category: "Ethnic",
+    gender: "Men",
     price: 179900,
     skus: [
       { id: "sku-lk-s", size: "S", color: "Beige", barcode: "FABK-BEI-S" },
@@ -75,6 +81,7 @@ const products: ProductSeed[] = [
     name: "High-Rise Skinny Jeans",
     brand: "Levis",
     category: "Jeans",
+    gender: "Women",
     price: 299900,
     skus: [
       { id: "sku-dj-28", size: "28", color: "Dark Blue", barcode: "LEVJ-DBL-28" },
@@ -86,6 +93,7 @@ const products: ProductSeed[] = [
     name: "Printed Maxi Dress",
     brand: "AND",
     category: "Dresses",
+    gender: "Women",
     price: 229900,
     skus: [
       { id: "sku-md-m", size: "M", color: "Geometric Print", barcode: "ANDM-GEO-M" },
@@ -96,7 +104,8 @@ const products: ProductSeed[] = [
     id: "prod-polo-shirt",
     name: "Classic Polo Shirt",
     brand: "Arrow",
-    category: "Polo",
+    category: "T-Shirts",
+    gender: "Men",
     price: 179900,
     skus: [
       { id: "sku-ps-m", size: "M", color: "Grey", barcode: "ARRP-GRY-M" },
@@ -109,6 +118,7 @@ const products: ProductSeed[] = [
     name: "Embroidered Salwar Suit Set",
     brand: "Biba",
     category: "Ethnic",
+    gender: "Women",
     price: 349900,
     skus: [
       { id: "sku-ss-s", size: "S", color: "Turquoise", barcode: "BIBS-TRQ-S" },
@@ -120,6 +130,7 @@ const products: ProductSeed[] = [
     name: "Utility Cargo Shorts",
     brand: "Roadster",
     category: "Shorts",
+    gender: "Men",
     price: 149900,
     skus: [
       { id: "sku-cs-30", size: "30", color: "Olive", barcode: "RDCS-OLV-30" },
@@ -160,12 +171,13 @@ async function main(): Promise<void> {
   for (const p of products) {
     const product = await prisma.product.upsert({
       where: { id: p.id },
-      update: {},
+      update: { category: p.category, gender: p.gender },
       create: {
         id: p.id,
         name: p.name,
         brand: p.brand,
         category: p.category,
+        gender: p.gender,
         price: p.price,
         images: [],
       },
@@ -197,7 +209,7 @@ async function main(): Promise<void> {
       });
     }
 
-    console.log(`  Product seeded: ${product.name} (${p.skus.length} SKUs)`);
+    console.log(`  Product seeded: ${product.name} [${p.gender}]`);
   }
 }
 

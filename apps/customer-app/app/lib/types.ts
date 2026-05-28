@@ -25,6 +25,7 @@ export interface Product {
   name: string;
   brand: string;
   category: string;
+  gender: string;
   description: string | null;
   price: number;
   images: string[];

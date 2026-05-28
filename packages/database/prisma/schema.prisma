@@ -203,6 +203,7 @@ model Product {
   name        String
   brand       String
   category    String
+  gender      String   @default("Unisex")
   description String?
   price       Int
   images      Json
