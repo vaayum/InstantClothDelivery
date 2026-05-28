@@ -139,14 +139,17 @@ router.post("/", requireAuth, async (req, res) => {
     data: { activeOrderCount: { increment: 1 } },
   });
 
-  await publishEvent("order.placed", {
-    orderId: order.id,
-    warehouseId: pinnedWarehouseId,
-    userId,
-    customerId: userId,
-    isTryOrder,
-    timestamp: new Date().toISOString(),
-  });
+  // COD: publish immediately. Non-COD: wait for payment verification.
+  if (paymentMethod === "COD") {
+    await publishEvent("order.placed", {
+      orderId: order.id,
+      warehouseId: pinnedWarehouseId,
+      userId,
+      customerId: userId,
+      isTryOrder,
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   const redis = getRedis();
   await redis.set(`sla:order:${order.id}`, new Date().toISOString(), "EX", 7200);

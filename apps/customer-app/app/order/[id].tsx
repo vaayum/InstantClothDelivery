@@ -135,12 +135,13 @@ export default function OrderTrackingScreen() {
   }
 
   const currentStatus = socketStatus ?? order.status;
+  const awaitingPayment = order.paymentMethod !== "COD" && order.paymentStatus === "PENDING" && order.status !== "CANCELLED";
   // PARTIALLY_DELIVERED and RETURNED map to the DELIVERED slot in the timeline
   const timelineStatus: OrderStatus = TERMINAL_DELIVERY.includes(currentStatus) ? "DELIVERED" : currentStatus;
   const currentIdx = TIMELINE.indexOf(timelineStatus);
   const isTerminalDelivery = TERMINAL_DELIVERY.includes(currentStatus);
   const isCancelled = currentStatus === "CANCELLED";
-  const canCancel = currentStatus === "PENDING" || currentStatus === "AGENT_ASSIGNED";
+  const canCancel = !awaitingPayment && (currentStatus === "PENDING" || currentStatus === "AGENT_ASSIGNED");
   const showMap = (currentStatus === "AGENT_EN_ROUTE" || currentStatus === "ARRIVED") && agentLocation;
 
   // Trial countdown: prefer socket value, fallback to computing from trialEndsAt
@@ -151,14 +152,50 @@ export default function OrderTrackingScreen() {
 
   return (
     <ScrollView style={s.scroll} contentContainerStyle={s.content}>
+      {/* Back button — always present since this screen is reachable via replace() with no stack history */}
+      <TouchableOpacity
+        style={s.backBtn}
+        onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/orders")}
+      >
+        <Text style={s.backBtnText}>← Orders</Text>
+      </TouchableOpacity>
+
       {/* Status header */}
       <View style={s.statusHeader}>
         <Text style={s.statusLabel}>{STATUS_LABELS[currentStatus] ?? currentStatus}</Text>
         <Text style={s.orderId}>#{orderId?.slice(-8).toUpperCase()}</Text>
       </View>
 
+      {/* Payment pending — shown when order exists but payment not completed */}
+      {awaitingPayment && (
+        <View style={s.payPendingCard}>
+          <Text style={s.payPendingTitle}>Payment not completed</Text>
+          <Text style={s.payPendingSub}>Your order is reserved but will not be dispatched until payment is confirmed.</Text>
+          {order.razorpayOrderId && (
+            <TouchableOpacity
+              style={s.payNowBtn}
+              onPress={() => router.push({
+                pathname: `/payment/${order.id}`,
+                params: {
+                  rzpOrderId: order.razorpayOrderId!,
+                  amount: String(order.totalAmount + order.deliveryFee),
+                  method: order.paymentMethod,
+                  itemCount: String(order.items.length),
+                  isTryOrder: String(order.isTryOrder),
+                },
+              })}
+            >
+              <Text style={s.payNowBtnText}>Complete Payment  →</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={cancelOrder} disabled={cancelling}>
+            <Text style={s.payPendingCancel}>{cancelling ? "Cancelling…" : "Cancel this order"}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Agent map */}
-      {showMap && agentLocation && (
+      {!awaitingPayment && showMap && agentLocation && (
         <MapView
           style={s.map}
           region={{
@@ -303,6 +340,8 @@ export default function OrderTrackingScreen() {
 const s = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: "#f8f9ff" },
   content: { padding: 20, paddingBottom: 48 },
+  backBtn: { marginBottom: 16 },
+  backBtnText: { color: "#6d28d9", fontSize: 15, fontWeight: "600" },
   center: { flex: 1, backgroundColor: "#f8f9ff", alignItems: "center", justifyContent: "center" },
   statusHeader: { marginBottom: 20 },
   statusLabel: { color: "#0b1c30", fontSize: 26, fontWeight: "700" },
@@ -368,4 +407,14 @@ const s = StyleSheet.create({
   otpLabel: { color: "#15803d", fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 },
   otpCode: { color: "#15803d", fontSize: 48, fontWeight: "700", letterSpacing: 12, fontVariant: ["tabular-nums"] },
   otpNote: { color: "#15803d", fontSize: 12, marginTop: 8, textAlign: "center" },
+
+  payPendingCard: {
+    backgroundColor: "#fff8e1", borderRadius: 16, padding: 20, marginBottom: 20,
+    borderWidth: 1.5, borderColor: "#f59e0b",
+  },
+  payPendingTitle: { color: "#92400e", fontSize: 16, fontWeight: "700", marginBottom: 6 },
+  payPendingSub: { color: "#78350f", fontSize: 13, lineHeight: 19, marginBottom: 16 },
+  payNowBtn: { backgroundColor: "#6d28d9", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 12 },
+  payNowBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  payPendingCancel: { color: "#ba1a1a", fontSize: 13, fontWeight: "600", textAlign: "center" },
 });

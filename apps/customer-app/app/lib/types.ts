@@ -62,6 +62,8 @@ export interface Order {
   addressId: string;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
+  paymentStatus: string;
+  razorpayOrderId: string | null;
   totalAmount: number;
   deliveryFee: number;
   isTryOrder: boolean;

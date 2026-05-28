@@ -56,14 +56,12 @@ export default function PaymentScreen() {
         theme: { color: "#6d28d9" },
       });
 
-      if (payment.razorpay_signature !== "dev_signature_mock") {
-        await api.post("/api/payments/verify", {
-          orderId,
-          razorpayPaymentId: payment.razorpay_payment_id,
-          razorpayOrderId: payment.razorpay_order_id,
-          razorpaySignature: payment.razorpay_signature,
-        });
-      }
+      await api.post("/api/payments/verify", {
+        orderId,
+        razorpayPaymentId: payment.razorpay_payment_id,
+        razorpayOrderId: payment.razorpay_order_id,
+        razorpaySignature: payment.razorpay_signature,
+      });
 
       router.replace(`/order/${orderId}`);
     } catch (err: unknown) {
