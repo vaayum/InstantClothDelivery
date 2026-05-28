@@ -43,7 +43,9 @@ function enrichSkus(
 
 router.get("/", async (req, res): Promise<void> => {
   const rawWid = req.query.warehouseId;
-  const warehouseId = Array.isArray(rawWid) ? rawWid[0] : (rawWid as string | undefined);
+  const warehouseId: string | undefined = Array.isArray(rawWid)
+    ? (rawWid[0] as string)
+    : (rawWid as string | undefined);
   const prisma = getPrisma();
 
   const products = await prisma.product.findMany({
