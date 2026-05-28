@@ -9,7 +9,7 @@ import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCart } from "../context/CartContext";
 import { api, clearSession } from "../lib/api";
-import type { Address } from "../lib/types";
+import type { Address, MeResponse } from "../lib/types";
 
 export default function ProfileScreen() {
   const [phone, setPhone] = useState<string | null>(null);
@@ -28,12 +28,17 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const { clearCart } = useCart();
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
+  const [primaryAddressId, setPrimaryAddressId] = useState<string | null>(null);
 
   const loadAddresses = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await api.get<Address[]>("/api/addresses");
-      setAddresses(res.data);
+      const [addrRes, meRes] = await Promise.all([
+        api.get<Address[]>("/api/addresses"),
+        api.get<MeResponse>("/api/me"),
+      ]);
+      setAddresses(addrRes.data);
+      setPrimaryAddressId(meRes.data.user.primaryAddressId);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) { await clearSession(); router.replace("/login"); }
@@ -117,7 +122,10 @@ export default function ProfileScreen() {
       const res = await api.post<{ warehouseChanged: boolean; deliveryAvailable: boolean }>(
         `/api/addresses/${addressId}/set-primary`
       );
-      if (res.data.warehouseChanged) {
+      setPrimaryAddressId(addressId);
+      if (!res.data.deliveryAvailable) {
+        Alert.alert("No delivery here", "No warehouse serves this area yet. We'll notify you when we expand.");
+      } else if (res.data.warehouseChanged) {
         clearCart();
         Alert.alert("Location updated", "Cart cleared — your new location is set.");
       } else {
@@ -250,32 +258,42 @@ export default function ProfileScreen() {
           <Text style={s.empty}>No saved addresses yet.</Text>
         )}
 
-        {addresses.map((addr) => (
-          <View key={addr.id} style={s.addrCard}>
-            <View style={s.addrRow}>
-              <View style={{ flex: 1 }}>
-                <View style={s.addrLabelRow}>
-                  <Text style={s.addrLabel}>{addr.label}</Text>
-                  {addr.isSafeDrop && (
-                    <View style={s.safeDropBadge}>
-                      <Text style={s.safeDropText}>Safe Drop</Text>
-                    </View>
-                  )}
+        {addresses.map((addr) => {
+          const isPrimary = addr.id === primaryAddressId;
+          return (
+            <View key={addr.id} style={[s.addrCard, isPrimary && s.addrCardPrimary]}>
+              <View style={s.addrRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={s.addrLabelRow}>
+                    <Text style={s.addrLabel}>{addr.label}</Text>
+                    {isPrimary && (
+                      <View style={s.primaryBadge}>
+                        <Text style={s.primaryBadgeText}>Delivering here</Text>
+                      </View>
+                    )}
+                    {addr.isSafeDrop && (
+                      <View style={s.safeDropBadge}>
+                        <Text style={s.safeDropText}>Safe Drop</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={s.addrText} numberOfLines={2}>{addr.formattedAddress}</Text>
                 </View>
-                <Text style={s.addrText} numberOfLines={2}>{addr.formattedAddress}</Text>
+                {!isPrimary && (
+                  <TouchableOpacity
+                    style={s.deliverBtn}
+                    onPress={() => setPrimary(addr.id)}
+                    disabled={settingPrimary === addr.id}
+                  >
+                    {settingPrimary === addr.id
+                      ? <ActivityIndicator size="small" color="#6d28d9" />
+                      : <Text style={s.deliverBtnText}>Deliver here</Text>}
+                  </TouchableOpacity>
+                )}
               </View>
-              <TouchableOpacity
-                style={s.deliverBtn}
-                onPress={() => setPrimary(addr.id)}
-                disabled={settingPrimary === addr.id}
-              >
-                {settingPrimary === addr.id
-                  ? <ActivityIndicator size="small" color="#6d28d9" />
-                  : <Text style={s.deliverBtnText}>Deliver here</Text>}
-              </TouchableOpacity>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       <TouchableOpacity style={s.logoutBtn} onPress={logout}>
@@ -375,9 +393,20 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#e5eeff",
   },
+  addrCardPrimary: {
+    borderColor: "#6d28d9",
+    backgroundColor: "#f5f0ff",
+  },
+  primaryBadge: {
+    backgroundColor: "#6d28d9",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  primaryBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
   addrRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   addrLabelRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
   addrLabel: { color: "#0b1c30", fontWeight: "700", fontSize: 14 },

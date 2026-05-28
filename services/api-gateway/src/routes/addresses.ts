@@ -26,7 +26,10 @@ async function pinWarehouse(
     where: { status: "ACTIVE" },
     select: { id: true, lat: true, lng: true, activeOrderCount: true },
   });
-  if (!warehouses.length) return { pinnedWarehouseId: null, etaMinutes: null };
+  if (!warehouses.length) {
+    await prisma.user.update({ where: { id: userId }, data: { pinnedWarehouseId: null, pinnedEtaMinutes: null } });
+    return { pinnedWarehouseId: null, etaMinutes: null };
+  }
 
   try {
     const { data } = await axios.post(`${ROUTING_URL}/select-warehouse`, {
@@ -39,13 +42,12 @@ async function pinWarehouse(
         has_stock: true,
       })),
     });
-    if (!data.warehouse_id) return { pinnedWarehouseId: null, etaMinutes: null };
-
+    const newWarehouseId: string | null = data.warehouse_id ?? null;
     await prisma.user.update({
       where: { id: userId },
-      data: { pinnedWarehouseId: data.warehouse_id, pinnedEtaMinutes: data.eta_minutes },
+      data: { pinnedWarehouseId: newWarehouseId, pinnedEtaMinutes: newWarehouseId ? data.eta_minutes : null },
     });
-    return { pinnedWarehouseId: data.warehouse_id as string, etaMinutes: data.eta_minutes as number };
+    return { pinnedWarehouseId: newWarehouseId, etaMinutes: newWarehouseId ? (data.eta_minutes as number) : null };
   } catch {
     return { pinnedWarehouseId: null, etaMinutes: null };
   }
@@ -96,6 +98,7 @@ router.post("/:id/set-primary", async (req, res): Promise<void> => {
   const previousWarehouseId = currentUser?.pinnedWarehouseId ?? null;
 
   const { pinnedWarehouseId, etaMinutes } = await pinWarehouse(userId, address.lat, address.lng);
+  await prisma.user.update({ where: { id: userId }, data: { primaryAddressId: req.params.id } });
   res.json({
     ...address,
     pinnedWarehouseId,

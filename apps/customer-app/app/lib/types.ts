@@ -94,5 +94,6 @@ export interface MeResponse {
     role: string;
     phone: string;
     pinnedWarehouseId: string | null;
+    primaryAddressId: string | null;
   };
 }

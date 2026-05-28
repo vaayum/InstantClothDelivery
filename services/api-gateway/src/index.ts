@@ -50,9 +50,9 @@ app.get("/api/me", requireAuth, async (req: any, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
-      select: { pinnedWarehouseId: true },
+      select: { pinnedWarehouseId: true, primaryAddressId: true },
     });
-    res.json({ user: { ...req.user, pinnedWarehouseId: user?.pinnedWarehouseId ?? null } });
+    res.json({ user: { ...req.user, pinnedWarehouseId: user?.pinnedWarehouseId ?? null, primaryAddressId: user?.primaryAddressId ?? null } });
   } catch {
     res.status(500).json({ error: "Could not fetch user data" });
   }
