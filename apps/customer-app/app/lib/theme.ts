@@ -16,10 +16,16 @@ export const T = {
   greenLight: "#E8F7F4",
   red:        "#FF0000",
   orange:     "#FF7E00",
-  // Typography weights
+  // Typography weights (kept for backward compat — prefer T.font.* going forward)
   bold:       "700" as const,
   semi:       "600" as const,
   regular:    "400" as const,
+  // Poppins font family names (loaded in _layout.tsx)
+  font: {
+    regular: "Poppins_400Regular",
+    semi:    "Poppins_600SemiBold",
+    bold:    "Poppins_700Bold",
+  },
   // Spacing
   radius:     4,
   radiusMd:   8,
