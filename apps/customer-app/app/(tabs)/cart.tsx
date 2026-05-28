@@ -4,12 +4,9 @@ import {
   ScrollView, ActivityIndicator, Alert,
 } from "react-native";
 import { router } from "expo-router";
-import RazorpayCheckout from "react-native-razorpay";
 import { api, clearSession } from "../lib/api";
 import { useCart } from "../context/CartContext";
 import type { Address, PaymentMethod } from "../lib/types";
-
-const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? "";
 
 const PAYMENT_OPTIONS: PaymentMethod[] = ["UPI", "CARD", "NET_BANKING", "COD"];
 
@@ -60,38 +57,24 @@ export default function CartScreen() {
         return;
       }
 
-      // Non-COD: open Razorpay checkout
+      // Non-COD: navigate to dedicated payment screen
       const rzpOrderId = res.data.razorpayOrderId;
       if (!rzpOrderId) {
         Alert.alert("Payment error", "Could not initiate payment. Please try again.");
         return;
       }
 
-      const amount = res.data.totalAmount + res.data.deliveryFee;
-      try {
-        const payment = await RazorpayCheckout.open({
-          description: "ThreadDash Order",
-          currency: "INR",
-          key: RAZORPAY_KEY_ID,
-          amount,
-          name: "ThreadDash",
-          order_id: rzpOrderId,
-          theme: { color: "#000000" },
-        });
-
-        await api.post("/api/payments/verify", {
-          orderId,
-          razorpayPaymentId: payment.razorpay_payment_id,
-          razorpayOrderId: payment.razorpay_order_id,
-          razorpaySignature: payment.razorpay_signature,
-        });
-
-        clearCart();
-        router.replace(`/order/${orderId}`);
-      } catch (payErr: unknown) {
-        const desc = (payErr as { description?: string }).description;
-        Alert.alert("Payment cancelled", desc ?? "Payment was not completed. Your order has been saved — try again from Orders.");
-      }
+      clearCart();
+      router.push({
+        pathname: `/payment/${orderId}`,
+        params: {
+          rzpOrderId,
+          amount: String(res.data.totalAmount + res.data.deliveryFee),
+          method: paymentMethod,
+          itemCount: String(items.length),
+          isTryOrder: String(allTryable ? isTryOrder : false),
+        },
+      });
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       const errorCode = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
@@ -246,68 +229,75 @@ export default function CartScreen() {
 }
 
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#0a0a0a" },
+  scroll: { flex: 1, backgroundColor: "#f8f9ff" },
   content: { padding: 20, paddingBottom: 48 },
-  heading: { color: "#fff", fontSize: 28, fontWeight: "bold", marginBottom: 20 },
-  empty: { flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center", padding: 32 },
+  heading: { color: "#0b1c30", fontSize: 28, fontWeight: "700", marginBottom: 20 },
+  empty: { flex: 1, backgroundColor: "#f8f9ff", alignItems: "center", justifyContent: "center", padding: 32 },
   emptyIcon: { fontSize: 64, marginBottom: 16 },
-  emptyTitle: { color: "#fff", fontSize: 22, fontWeight: "bold", marginBottom: 8 },
-  emptySub: { color: "#666", fontSize: 15, marginBottom: 28 },
-  browseBtn: { backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 32, paddingVertical: 14 },
-  browseBtnText: { color: "#000", fontWeight: "bold", fontSize: 16 },
+  emptyTitle: { color: "#0b1c30", fontSize: 22, fontWeight: "700", marginBottom: 8 },
+  emptySub: { color: "#7b7486", fontSize: 15, marginBottom: 28 },
+  browseBtn: { backgroundColor: "#6d28d9", borderRadius: 12, paddingHorizontal: 32, paddingVertical: 14 },
+  browseBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   itemCard: {
-    backgroundColor: "#1a1a1a", borderRadius: 12, padding: 14,
+    backgroundColor: "#ffffff", borderRadius: 14, padding: 14,
     flexDirection: "row", justifyContent: "space-between", marginBottom: 12,
+    borderWidth: 1, borderColor: "#e5eeff",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
   itemInfo: { flex: 1, marginRight: 12 },
-  itemBrand: { color: "#666", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 },
-  itemName: { color: "#fff", fontSize: 15, fontWeight: "600", marginTop: 2 },
-  itemMeta: { color: "#888", fontSize: 13, marginTop: 2 },
+  itemBrand: { color: "#7b7486", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.8 },
+  itemName: { color: "#0b1c30", fontSize: 15, fontWeight: "600", marginTop: 2 },
+  itemMeta: { color: "#7b7486", fontSize: 13, marginTop: 2 },
   itemRight: { alignItems: "flex-end", gap: 6 },
-  itemPrice: { color: "#22c55e", fontWeight: "bold", fontSize: 15 },
+  itemPrice: { color: "#5300b7", fontWeight: "700", fontSize: 15 },
   qtyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   qtyBtn: {
-    backgroundColor: "#2a2a2a", borderRadius: 6,
+    backgroundColor: "#eff4ff", borderRadius: 8,
     width: 28, height: 28, alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "#d3e4fe",
   },
-  qtyBtnText: { color: "#fff", fontSize: 18, lineHeight: 22 },
-  qty: { color: "#fff", fontSize: 15, fontWeight: "600", minWidth: 20, textAlign: "center" },
-  remove: { color: "#ef4444", fontSize: 12 },
+  qtyBtnText: { color: "#0b1c30", fontSize: 18, lineHeight: 22, fontWeight: "600" },
+  qty: { color: "#0b1c30", fontSize: 15, fontWeight: "600", minWidth: 20, textAlign: "center" },
+  remove: { color: "#ba1a1a", fontSize: 12, fontWeight: "600" },
   tryRow: {
-    backgroundColor: "#1a0a2e", borderRadius: 12, padding: 16,
+    backgroundColor: "#ede9fe", borderRadius: 14, padding: 16,
     flexDirection: "row", alignItems: "center", marginBottom: 20,
+    borderWidth: 1, borderColor: "#dac5ff",
   },
-  tryTitle: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  trySub: { color: "#7c3aed", fontSize: 12, marginTop: 2 },
-  toggle: { width: 44, height: 26, borderRadius: 13, backgroundColor: "#333", padding: 3 },
-  toggleOn: { backgroundColor: "#7c3aed" },
+  tryTitle: { color: "#0b1c30", fontWeight: "700", fontSize: 15 },
+  trySub: { color: "#5300b7", fontSize: 12, marginTop: 2 },
+  toggle: { width: 44, height: 26, borderRadius: 13, backgroundColor: "#ccc3d7", padding: 3 },
+  toggleOn: { backgroundColor: "#6d28d9" },
   thumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
   thumbOn: { alignSelf: "flex-end" },
   sectionLabel: {
-    color: "#666", fontSize: 11, textTransform: "uppercase",
-    letterSpacing: 1, marginBottom: 10, marginTop: 8,
+    color: "#7b7486", fontSize: 11, fontWeight: "700", textTransform: "uppercase",
+    letterSpacing: 1.2, marginBottom: 10, marginTop: 8,
   },
-  noAddr: { color: "#555", fontSize: 14, marginBottom: 16 },
+  noAddr: { color: "#7b7486", fontSize: 14, marginBottom: 16 },
   addrCard: {
-    backgroundColor: "#1a1a1a", borderRadius: 10, padding: 14,
-    marginBottom: 8, borderWidth: 2, borderColor: "transparent",
+    backgroundColor: "#ffffff", borderRadius: 12, padding: 14,
+    marginBottom: 8, borderWidth: 2, borderColor: "#e5eeff",
   },
-  addrSelected: { borderColor: "#3b82f6" },
-  addrLabel: { color: "#fff", fontWeight: "600", marginBottom: 2 },
-  addrText: { color: "#aaa", fontSize: 13 },
+  addrSelected: { borderColor: "#6d28d9", backgroundColor: "#f5f0ff" },
+  addrLabel: { color: "#0b1c30", fontWeight: "700", marginBottom: 2 },
+  addrText: { color: "#7b7486", fontSize: 13 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
-  chip: { borderWidth: 1, borderColor: "#333", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  chipSelected: { backgroundColor: "#fff", borderColor: "#fff" },
-  chipText: { color: "#aaa", fontSize: 14 },
-  chipTextSelected: { color: "#000", fontWeight: "600" },
-  summaryBox: { backgroundColor: "#1a1a1a", borderRadius: 12, padding: 16, marginBottom: 16 },
+  chip: { borderWidth: 1.5, borderColor: "#ccc3d7", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#ffffff" },
+  chipSelected: { backgroundColor: "#6d28d9", borderColor: "#6d28d9" },
+  chipText: { color: "#4a4455", fontSize: 14 },
+  chipTextSelected: { color: "#ffffff", fontWeight: "700" },
+  summaryBox: {
+    backgroundColor: "#ffffff", borderRadius: 14, padding: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: "#e5eeff",
+  },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
-  summaryLabel: { color: "#888", fontSize: 14 },
-  summaryValue: { color: "#aaa", fontSize: 14 },
-  totalRow: { borderTopWidth: 1, borderTopColor: "#2a2a2a", marginTop: 8, paddingTop: 12 },
-  totalLabel: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  totalValue: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  orderBtn: { backgroundColor: "#fff", borderRadius: 14, padding: 20, alignItems: "center" },
-  orderBtnDisabled: { backgroundColor: "#2a2a2a" },
-  orderBtnText: { color: "#000", fontWeight: "bold", fontSize: 17 },
+  summaryLabel: { color: "#7b7486", fontSize: 14 },
+  summaryValue: { color: "#4a4455", fontSize: 14 },
+  totalRow: { borderTopWidth: 1, borderTopColor: "#e5eeff", marginTop: 8, paddingTop: 12 },
+  totalLabel: { color: "#0b1c30", fontSize: 16, fontWeight: "700" },
+  totalValue: { color: "#0b1c30", fontSize: 16, fontWeight: "700" },
+  orderBtn: { backgroundColor: "#6d28d9", borderRadius: 14, padding: 20, alignItems: "center" },
+  orderBtnDisabled: { opacity: 0.55 },
+  orderBtnText: { color: "#ffffff", fontWeight: "700", fontSize: 17 },
 });

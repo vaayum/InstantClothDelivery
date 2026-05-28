@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "threaddash",
+    "newArchEnabled": false,
     "android": {
       "package": "in.threaddash.customer"
     },
