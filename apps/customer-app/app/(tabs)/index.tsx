@@ -8,6 +8,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Location from "expo-location";
 import { api, clearSession } from "../lib/api";
 import type { Product, MeResponse } from "../lib/types";
+import { useWishlist } from "../context/WishlistContext";
 
 type Gender = "All" | "Men" | "Women" | "Children";
 type SortMode = "relevance" | "price_asc" | "price_desc" | "new_arrivals";
@@ -15,8 +16,6 @@ type ChipItem = { label: string; matches: string[] | null };
 
 const GENDERS: Gender[] = ["All", "Men", "Women", "Children"];
 
-
-// Curated, gender-specific chip labels that group and rename categories intelligently
 const GENDER_CHIPS: Record<Exclude<Gender, "All">, ChipItem[]> = {
   Men: [
     { label: "Shirts", matches: ["Shirts"] },
@@ -47,7 +46,6 @@ const GENDER_CHIPS: Record<Exclude<Gender, "All">, ChipItem[]> = {
   ],
 };
 
-// Flat chip list used when no gender is selected
 const ALL_FLAT_CHIPS: ChipItem[] = [
   "Shirts", "T-Shirts", "Jeans", "Trousers", "Kurta",
   "Dresses", "Ethnic", "Jackets", "Footwear", "Accessories",
@@ -75,6 +73,11 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
 
 const ALL_CHIP: ChipItem = { label: "All", matches: null };
 
+function isProductAvailable(product: Product): boolean {
+  if (!product.skus.length) return false;
+  return product.skus.some((s) => s.available === true);
+}
+
 export default function HomeScreen() {
   const [pinnedWarehouseId, setPinnedWarehouseId] = useState<string | null | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
@@ -87,6 +90,8 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [locating, setLocating] = useState(false);
+
+  const { isWishlisted, add: addToWishlist, remove: removeFromWishlist } = useWishlist();
 
   const checkPin = useCallback(async () => {
     try {
@@ -104,7 +109,10 @@ export default function HomeScreen() {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(false);
     try {
-      const res = await api.get<Product[]>("/api/catalog");
+      const url = pinnedWarehouseId
+        ? `/api/catalog?warehouseId=${pinnedWarehouseId}`
+        : "/api/catalog";
+      const res = await api.get<Product[]>(url);
       setProducts(res.data);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
@@ -114,10 +122,10 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [pinnedWarehouseId]);
 
   useEffect(() => {
-    if (pinnedWarehouseId) load();
+    if (pinnedWarehouseId !== undefined) load();
   }, [pinnedWarehouseId, load]);
 
   const handleGenderChange = useCallback((g: Gender) => {
@@ -125,13 +133,11 @@ export default function HomeScreen() {
     setActiveCategoryLabel("All");
   }, []);
 
-  // The chips shown below gender pills — contextual per gender
   const chipList = useMemo((): ChipItem[] => {
     const base = gender === "All" ? ALL_FLAT_CHIPS : GENDER_CHIPS[gender];
     return [ALL_CHIP, ...base];
   }, [gender]);
 
-  // Derive the active filter's matches from the chip list
   const activeCategoryMatches = useMemo(() => {
     if (activeCategoryLabel === "All") return null;
     return chipList.find((c) => c.label === activeCategoryLabel)?.matches ?? null;
@@ -199,21 +205,6 @@ export default function HomeScreen() {
     return <View style={s.center}><ActivityIndicator size="large" color="#6d28d9" /></View>;
   }
 
-  if (pinnedWarehouseId === null) {
-    return (
-      <View style={s.gate}>
-        <Text style={s.gateTitle}>Where should we deliver?</Text>
-        <Text style={s.gateSub}>Set your location to see what's available near you.</Text>
-        <TouchableOpacity style={s.gateBtn} onPress={useCurrentLocation} disabled={locating}>
-          {locating ? <ActivityIndicator color="#fff" /> : <Text style={s.gateBtnText}>Use my location</Text>}
-        </TouchableOpacity>
-        <TouchableOpacity style={s.gateSecondary} onPress={() => router.push("/(tabs)/profile")}>
-          <Text style={s.gateSecondaryText}>Enter address manually</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color="#6d28d9" /></View>;
   }
@@ -231,6 +222,13 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#6d28d9" />}
         ListHeaderComponent={
           <View>
+            {pinnedWarehouseId === null && (
+              <TouchableOpacity style={s.locationBanner} onPress={useCurrentLocation} disabled={locating}>
+                <Text style={s.locationBannerText}>
+                  {locating ? "Getting location…" : "📍 Set your location to order"}
+                </Text>
+              </TouchableOpacity>
+            )}
             <Text style={s.heading}>Discover</Text>
             <TextInput
               style={s.search}
@@ -239,7 +237,6 @@ export default function HomeScreen() {
               value={query}
               onChangeText={setQuery}
             />
-            {/* Gender pills */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pillRow}>
               {GENDERS.map((g) => (
                 <TouchableOpacity
@@ -251,7 +248,6 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            {/* Category chips — curated per gender */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
               {chipList.map((c) => (
                 <TouchableOpacity
@@ -263,7 +259,6 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            {/* Sort row */}
             <View style={s.sortRow}>
               <Text style={s.resultCount}>{filtered.length} items</Text>
               <TouchableOpacity style={s.sortBtn} onPress={() => setSortSheetOpen(true)}>
@@ -282,33 +277,51 @@ export default function HomeScreen() {
           const displayPrice = item.price / 100;
           const mrp = Math.round(displayPrice * 1.25);
           const discount = Math.round(((mrp - displayPrice) / mrp) * 100);
+          const available = isProductAvailable(item);
+          const wishlisted = isWishlisted(item.id);
+
           return (
             <TouchableOpacity
-              style={s.card}
-              onPress={() => router.push(`/product/${item.id}`)}
-              activeOpacity={0.85}
+              style={[s.card, !available && s.cardUnavailable]}
+              onPress={() => available ? router.push(`/product/${item.id}`) : undefined}
+              activeOpacity={available ? 0.85 : 1}
             >
               <View style={[s.imgBlock, { backgroundColor: bgColor }]}>
                 <Text style={s.imgEmoji}>👕</Text>
-                {item.isTryable && (
+                {item.isTryable && available && (
                   <View style={s.tryBadge}><Text style={s.tryText}>Try</Text></View>
                 )}
+                {!available && (
+                  <View style={s.unavailableOverlay}>
+                    <Text style={s.unavailableText}>
+                      {pinnedWarehouseId ? "Not in\nyour area" : "Set\nlocation"}
+                    </Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={s.heartBtn}
+                  onPress={() => wishlisted ? removeFromWishlist(item.id) : addToWishlist(item.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={s.heartIcon}>{wishlisted ? "❤️" : "🤍"}</Text>
+                </TouchableOpacity>
               </View>
               <View style={s.cardBody}>
-                <Text style={s.brand} numberOfLines={1}>{item.brand}</Text>
-                <Text style={s.name} numberOfLines={2}>{item.name}</Text>
-                <View style={s.priceRow}>
-                  <Text style={s.price}>₹{displayPrice.toFixed(0)}</Text>
-                  <Text style={s.mrp}>₹{mrp.toFixed(0)}</Text>
-                  <Text style={s.discountPct}>{discount}% off</Text>
-                </View>
+                <Text style={[s.brand, !available && s.textMuted]} numberOfLines={1}>{item.brand}</Text>
+                <Text style={[s.name, !available && s.textMuted]} numberOfLines={2}>{item.name}</Text>
+                {available && (
+                  <View style={s.priceRow}>
+                    <Text style={s.price}>₹{displayPrice.toFixed(0)}</Text>
+                    <Text style={s.mrp}>₹{mrp.toFixed(0)}</Text>
+                    <Text style={s.discountPct}>{discount}% off</Text>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
           );
         }}
       />
 
-      {/* Sort bottom sheet */}
       <Modal
         visible={sortSheetOpen}
         transparent
@@ -345,16 +358,32 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9ff" },
   center: { flex: 1, backgroundColor: "#f8f9ff", alignItems: "center", justifyContent: "center" },
 
-  gate: { flex: 1, backgroundColor: "#f8f9ff", alignItems: "center", justifyContent: "center", padding: 32 },
-  gateTitle: { color: "#0b1c30", fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 12 },
-  gateSub: { color: "#7b7486", fontSize: 15, textAlign: "center", marginBottom: 32 },
-  gateBtn: {
-    backgroundColor: "#6d28d9", borderRadius: 14, paddingVertical: 16,
-    alignItems: "center", width: "100%", marginBottom: 12,
+  locationBanner: {
+    backgroundColor: "#ede9fe", borderRadius: 12, padding: 12,
+    marginHorizontal: 16, marginTop: 12, marginBottom: 4, alignItems: "center",
   },
-  gateBtnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  gateSecondary: { paddingVertical: 12 },
-  gateSecondaryText: { color: "#5300b7", fontSize: 15, fontWeight: "600" },
+  locationBannerText: { color: "#5300b7", fontWeight: "600", fontSize: 14 },
+
+  cardUnavailable: { opacity: 0.7 },
+  unavailableOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unavailableText: {
+    color: "#fff", fontSize: 11, fontWeight: "700",
+    textAlign: "center", letterSpacing: 0.5,
+  },
+  heartBtn: {
+    position: "absolute", top: 6, right: 6,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: 14, width: 28, height: 28,
+    alignItems: "center", justifyContent: "center",
+  },
+  heartIcon: { fontSize: 14 },
+  textMuted: { color: "#aaa" },
 
   heading: {
     fontSize: 28, fontWeight: "800", color: "#0b1c30",
