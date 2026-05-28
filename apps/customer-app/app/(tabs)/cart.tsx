@@ -7,6 +7,7 @@ import { router, useFocusEffect } from "expo-router";
 import { api, clearSession } from "../lib/api";
 import { useCart } from "../context/CartContext";
 import type { Address, MeResponse, PaymentMethod } from "../lib/types";
+import { T } from "../lib/theme";
 
 const PAYMENT_OPTIONS: PaymentMethod[] = ["UPI", "CARD", "NET_BANKING", "COD"];
 
@@ -51,22 +52,10 @@ export default function CartScreen() {
           isTryOrder: allTryable ? isTryOrder : false,
         }
       );
-
       const orderId = res.data.id;
-
-      if (paymentMethod === "COD") {
-        clearCart();
-        router.replace(`/order/${orderId}`);
-        return;
-      }
-
-      // Non-COD: navigate to dedicated payment screen
+      if (paymentMethod === "COD") { clearCart(); router.replace(`/order/${orderId}`); return; }
       const rzpOrderId = res.data.razorpayOrderId;
-      if (!rzpOrderId) {
-        Alert.alert("Payment error", "Could not initiate payment. Please try again.");
-        return;
-      }
-
+      if (!rzpOrderId) { Alert.alert("Payment error", "Could not initiate payment. Please try again."); return; }
       clearCart();
       router.push({
         pathname: `/payment/${orderId}`,
@@ -81,16 +70,11 @@ export default function CartScreen() {
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       const errorCode = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
-
       if (status === 400 && errorCode === "no_delivery_address") {
-        Alert.alert(
-          "No delivery address",
-          "Please set a delivery address first.",
-          [
-            { text: "Go to Profile", onPress: () => router.push("/(tabs)/profile") },
-            { text: "Cancel", style: "cancel" },
-          ]
-        );
+        Alert.alert("No delivery address", "Please set a delivery address first.", [
+          { text: "Go to Profile", onPress: () => router.push("/(tabs)/profile") },
+          { text: "Cancel", style: "cancel" },
+        ]);
       } else if (status === 409 && errorCode === "items_unavailable") {
         const unavailableSkuIds: string[] =
           (err as { response?: { data?: { unavailableSkuIds?: string[] } } }).response?.data?.unavailableSkuIds ?? [];
@@ -98,31 +82,25 @@ export default function CartScreen() {
           .filter((i) => unavailableSkuIds.includes(i.skuId))
           .map((i) => `${i.productName} (${i.size})`)
           .join(", ");
-        Alert.alert(
-          "Item went out of stock",
-          `${names || "One or more items"} just went out of stock. Remove it to continue.`
-        );
+        Alert.alert("Item went out of stock", `${names || "One or more items"} just went out of stock. Remove it to continue.`);
       } else if (status === 409) {
         Alert.alert("Out of stock", "One or more items are not available.");
       } else if (status === 401) {
-        await clearSession();
-        router.replace("/login");
+        await clearSession(); router.replace("/login");
       } else {
         Alert.alert("Error", "Could not place order. Please try again.");
       }
-    } finally {
-      setPlacing(false);
-    }
+    } finally { setPlacing(false); }
   }
 
   if (items.length === 0) {
     return (
       <View style={s.empty}>
-        <Text style={s.emptyIcon}>🛒</Text>
-        <Text style={s.emptyTitle}>Your cart is empty</Text>
-        <Text style={s.emptySub}>Browse the catalogue and add items</Text>
+        <Text style={s.emptyIcon}>👜</Text>
+        <Text style={s.emptyTitle}>YOUR BAG IS EMPTY</Text>
+        <Text style={s.emptySub}>Add items to it now</Text>
         <TouchableOpacity style={s.browseBtn} onPress={() => router.push("/(tabs)")}>
-          <Text style={s.browseBtnText}>Browse</Text>
+          <Text style={s.browseBtnText}>SHOP NOW</Text>
         </TouchableOpacity>
       </View>
     );
@@ -130,33 +108,61 @@ export default function CartScreen() {
 
   return (
     <ScrollView style={s.scroll} contentContainerStyle={s.content}>
-      <Text style={s.heading}>Cart</Text>
+      <View style={s.pageHeader}>
+        <Text style={s.heading}>MY BAG</Text>
+        <Text style={s.itemCount}>{items.length} item{items.length !== 1 ? "s" : ""}</Text>
+      </View>
 
+      {/* Delivery address */}
+      <View style={s.section}>
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>DELIVER TO</Text>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+            <Text style={s.changeLink}>CHANGE</Text>
+          </TouchableOpacity>
+        </View>
+        {selectedAddress ? (
+          <View style={s.addrCard}>
+            <View style={s.addrTag}><Text style={s.addrTagText}>{selectedAddress.label.toUpperCase()}</Text></View>
+            <Text style={s.addrText}>{selectedAddress.formattedAddress}</Text>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+            <Text style={s.noAddr}>Add a delivery address →</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Cart items */}
       {items.map((item) => (
         <View key={item.skuId} style={s.itemCard}>
+          <View style={s.itemImgBlock}>
+            <Text style={s.itemEmoji}>👕</Text>
+          </View>
           <View style={s.itemInfo}>
             <Text style={s.itemBrand}>{item.brand}</Text>
             <Text style={s.itemName}>{item.productName}</Text>
             <Text style={s.itemMeta}>{item.size} · {item.color}</Text>
-          </View>
-          <View style={s.itemRight}>
             <Text style={s.itemPrice}>₹{(item.price / 100).toFixed(0)}</Text>
-            <View style={s.qtyRow}>
-              <TouchableOpacity style={s.qtyBtn} onPress={() => updateQty(item.skuId, -1)}>
-                <Text style={s.qtyBtnText}>−</Text>
-              </TouchableOpacity>
-              <Text style={s.qty}>{item.quantity}</Text>
-              <TouchableOpacity style={s.qtyBtn} onPress={() => updateQty(item.skuId, 1)}>
-                <Text style={s.qtyBtnText}>+</Text>
+            <View style={s.itemActions}>
+              <View style={s.qtyRow}>
+                <TouchableOpacity style={s.qtyBtn} onPress={() => updateQty(item.skuId, -1)}>
+                  <Text style={s.qtyBtnText}>−</Text>
+                </TouchableOpacity>
+                <Text style={s.qty}>{item.quantity}</Text>
+                <TouchableOpacity style={s.qtyBtn} onPress={() => updateQty(item.skuId, 1)}>
+                  <Text style={s.qtyBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={() => removeItem(item.skuId)}>
+                <Text style={s.removeText}>REMOVE</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => removeItem(item.skuId)}>
-              <Text style={s.remove}>Remove</Text>
-            </TouchableOpacity>
           </View>
         </View>
       ))}
 
+      {/* Try Before Keep toggle */}
       {allTryable && (
         <TouchableOpacity style={s.tryRow} onPress={() => setIsTryOrder((v) => !v)}>
           <View style={{ flex: 1, marginRight: 12 }}>
@@ -169,62 +175,54 @@ export default function CartScreen() {
         </TouchableOpacity>
       )}
 
-      <View style={s.addrHeader}>
-        <Text style={s.sectionLabel}>Deliver to</Text>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
-          <Text style={s.changeAddrLink}>Change →</Text>
-        </TouchableOpacity>
-      </View>
-      {selectedAddress ? (
-        <View style={s.addrCard}>
-          <Text style={s.addrLabel}>{selectedAddress.label}</Text>
-          <Text style={s.addrText}>{selectedAddress.formattedAddress}</Text>
+      {/* Payment method */}
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>PAYMENT</Text>
+        <View style={s.chipRow}>
+          {PAYMENT_OPTIONS.map((m) => (
+            <TouchableOpacity
+              key={m}
+              style={[s.chip, paymentMethod === m && s.chipSelected]}
+              onPress={() => setPaymentMethod(m)}
+            >
+              <Text style={[s.chipText, paymentMethod === m && s.chipTextSelected]}>{m}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      ) : (
-        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
-          <Text style={s.noAddr}>No delivery address — tap to add one in Profile</Text>
-        </TouchableOpacity>
-      )}
-
-      <Text style={s.sectionLabel}>Payment</Text>
-      <View style={s.chipRow}>
-        {PAYMENT_OPTIONS.map((m) => (
-          <TouchableOpacity
-            key={m}
-            style={[s.chip, paymentMethod === m && s.chipSelected]}
-            onPress={() => setPaymentMethod(m)}
-          >
-            <Text style={[s.chipText, paymentMethod === m && s.chipTextSelected]}>{m}</Text>
-          </TouchableOpacity>
-        ))}
       </View>
 
+      {/* Price summary */}
       <View style={s.summaryBox}>
+        <Text style={s.summaryTitle}>PRICE DETAILS</Text>
         <View style={s.summaryRow}>
-          <Text style={s.summaryLabel}>Subtotal</Text>
+          <Text style={s.summaryLabel}>Total MRP</Text>
           <Text style={s.summaryValue}>₹{(totalPrice / 100).toFixed(0)}</Text>
+        </View>
+        <View style={s.summaryRow}>
+          <Text style={s.summaryLabel}>Discount on MRP</Text>
+          <Text style={[s.summaryValue, { color: T.green }]}>– ₹0</Text>
         </View>
         {deliveryFee > 0 && (
           <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Delivery fee</Text>
+            <Text style={s.summaryLabel}>Delivery Fee</Text>
             <Text style={s.summaryValue}>₹{(deliveryFee / 100).toFixed(0)}</Text>
           </View>
         )}
-        <View style={[s.summaryRow, s.totalRow]}>
-          <Text style={s.totalLabel}>Total</Text>
+        <View style={s.totalRow}>
+          <Text style={s.totalLabel}>Total Amount</Text>
           <Text style={s.totalValue}>₹{(total / 100).toFixed(0)}</Text>
         </View>
       </View>
 
       <TouchableOpacity
-        style={[s.orderBtn, placing && s.orderBtnDisabled]}
+        style={[s.placeBtn, placing && s.placeBtnDisabled]}
         onPress={placeOrder}
         disabled={placing}
       >
         {placing
-          ? <ActivityIndicator color="#000" />
-          : <Text style={s.orderBtnText}>
-              {isTryOrder ? "Try Now" : "Place Order"} — ₹{(total / 100).toFixed(0)}
+          ? <ActivityIndicator color={T.white} />
+          : <Text style={s.placeBtnText}>
+              {isTryOrder ? "TRY NOW" : "PLACE ORDER"} — ₹{(total / 100).toFixed(0)}
             </Text>
         }
       </TouchableOpacity>
@@ -233,76 +231,89 @@ export default function CartScreen() {
 }
 
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#f8f9ff" },
-  content: { padding: 20, paddingBottom: 48 },
-  heading: { color: "#0b1c30", fontSize: 28, fontWeight: "700", marginBottom: 20 },
-  empty: { flex: 1, backgroundColor: "#f8f9ff", alignItems: "center", justifyContent: "center", padding: 32 },
-  emptyIcon: { fontSize: 64, marginBottom: 16 },
-  emptyTitle: { color: "#0b1c30", fontSize: 22, fontWeight: "700", marginBottom: 8 },
-  emptySub: { color: "#7b7486", fontSize: 15, marginBottom: 28 },
-  browseBtn: { backgroundColor: "#6d28d9", borderRadius: 12, paddingHorizontal: 32, paddingVertical: 14 },
-  browseBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  scroll: { flex: 1, backgroundColor: T.lightBg },
+  content: { paddingBottom: 48 },
+
+  pageHeader: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: T.white, paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: T.border, marginBottom: 8,
+  },
+  heading: { fontSize: 16, fontWeight: T.bold, color: T.dark, letterSpacing: 1 },
+  itemCount: { fontSize: 13, color: T.gray },
+
+  section: { backgroundColor: T.white, padding: 16, marginBottom: 8 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  sectionTitle: { fontSize: 12, fontWeight: T.bold, color: T.dark, letterSpacing: 0.8 },
+  changeLink: { fontSize: 12, fontWeight: T.bold, color: T.pink },
+
+  addrCard: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  addrTag: { backgroundColor: T.green, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
+  addrTagText: { color: T.white, fontSize: 10, fontWeight: T.bold },
+  addrText: { flex: 1, fontSize: 13, color: T.mid, lineHeight: 18 },
+  noAddr: { color: T.pink, fontSize: 13 },
+
   itemCard: {
-    backgroundColor: "#ffffff", borderRadius: 14, padding: 14,
-    flexDirection: "row", justifyContent: "space-between", marginBottom: 12,
-    borderWidth: 1, borderColor: "#e5eeff",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    backgroundColor: T.white, flexDirection: "row", padding: 16,
+    borderBottomWidth: 1, borderBottomColor: T.border,
   },
-  itemInfo: { flex: 1, marginRight: 12 },
-  itemBrand: { color: "#7b7486", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.8 },
-  itemName: { color: "#0b1c30", fontSize: 15, fontWeight: "600", marginTop: 2 },
-  itemMeta: { color: "#7b7486", fontSize: 13, marginTop: 2 },
-  itemRight: { alignItems: "flex-end", gap: 6 },
-  itemPrice: { color: "#5300b7", fontWeight: "700", fontSize: 15 },
-  qtyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  qtyBtn: {
-    backgroundColor: "#eff4ff", borderRadius: 8,
-    width: 28, height: 28, alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "#d3e4fe",
+  itemImgBlock: {
+    width: 80, height: 100, backgroundColor: T.lightBg, borderRadius: T.radius,
+    alignItems: "center", justifyContent: "center", marginRight: 12,
   },
-  qtyBtnText: { color: "#0b1c30", fontSize: 18, lineHeight: 22, fontWeight: "600" },
-  qty: { color: "#0b1c30", fontSize: 15, fontWeight: "600", minWidth: 20, textAlign: "center" },
-  remove: { color: "#ba1a1a", fontSize: 12, fontWeight: "600" },
+  itemEmoji: { fontSize: 36 },
+  itemInfo: { flex: 1 },
+  itemBrand: { fontSize: 13, fontWeight: T.bold, color: T.dark },
+  itemName: { fontSize: 13, color: T.mid, marginTop: 2 },
+  itemMeta: { fontSize: 12, color: T.gray, marginTop: 2 },
+  itemPrice: { fontSize: 15, fontWeight: T.bold, color: T.dark, marginTop: 6 },
+  itemActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
+  qtyRow: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    borderWidth: 1, borderColor: T.border, borderRadius: T.radius, paddingHorizontal: 8,
+  },
+  qtyBtn: { paddingVertical: 4 },
+  qtyBtnText: { fontSize: 18, color: T.dark },
+  qty: { fontSize: 14, fontWeight: T.bold, color: T.dark, minWidth: 20, textAlign: "center" },
+  removeText: { fontSize: 12, fontWeight: T.bold, color: T.gray, letterSpacing: 0.5 },
+
   tryRow: {
-    backgroundColor: "#ede9fe", borderRadius: 14, padding: 16,
-    flexDirection: "row", alignItems: "center", marginBottom: 20,
-    borderWidth: 1, borderColor: "#dac5ff",
+    backgroundColor: T.white, flexDirection: "row", alignItems: "center",
+    padding: 16, borderBottomWidth: 1, borderBottomColor: T.border, marginBottom: 8,
   },
-  tryTitle: { color: "#0b1c30", fontWeight: "700", fontSize: 15 },
-  trySub: { color: "#5300b7", fontSize: 12, marginTop: 2 },
-  toggle: { width: 44, height: 26, borderRadius: 13, backgroundColor: "#ccc3d7", padding: 3 },
-  toggleOn: { backgroundColor: "#6d28d9" },
-  thumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
+  tryTitle: { fontSize: 13, fontWeight: T.bold, color: T.dark },
+  trySub: { fontSize: 12, color: T.gray, marginTop: 2 },
+  toggle: { width: 44, height: 26, borderRadius: 13, backgroundColor: T.border, padding: 3 },
+  toggleOn: { backgroundColor: T.pink },
+  thumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: T.white },
   thumbOn: { alignSelf: "flex-end" },
-  addrHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8, marginBottom: 10 },
-  sectionLabel: {
-    color: "#7b7486", fontSize: 11, fontWeight: "700", textTransform: "uppercase",
-    letterSpacing: 1.2,
+
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  chip: { borderWidth: 1, borderColor: T.border, borderRadius: T.radius, paddingHorizontal: 14, paddingVertical: 7 },
+  chipSelected: { backgroundColor: T.dark, borderColor: T.dark },
+  chipText: { color: T.mid, fontSize: 13 },
+  chipTextSelected: { color: T.white, fontWeight: T.bold },
+
+  summaryBox: { backgroundColor: T.white, padding: 16, marginTop: 8, marginBottom: 8 },
+  summaryTitle: { fontSize: 12, fontWeight: T.bold, color: T.dark, letterSpacing: 0.8, marginBottom: 14 },
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
+  summaryLabel: { fontSize: 13, color: T.mid },
+  summaryValue: { fontSize: 13, color: T.dark },
+  totalRow: {
+    flexDirection: "row", justifyContent: "space-between",
+    borderTopWidth: 1, borderTopColor: T.border, paddingTop: 12, marginTop: 4,
   },
-  changeAddrLink: { color: "#6d28d9", fontSize: 13, fontWeight: "600" },
-  noAddr: { color: "#6d28d9", fontSize: 14, marginBottom: 16 },
-  addrCard: {
-    backgroundColor: "#ffffff", borderRadius: 12, padding: 14,
-    marginBottom: 8, borderWidth: 1.5, borderColor: "#6d28d9", backgroundColor: "#f5f0ff",
-  },
-  addrLabel: { color: "#0b1c30", fontWeight: "700", marginBottom: 2 },
-  addrText: { color: "#7b7486", fontSize: 13 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
-  chip: { borderWidth: 1.5, borderColor: "#ccc3d7", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#ffffff" },
-  chipSelected: { backgroundColor: "#6d28d9", borderColor: "#6d28d9" },
-  chipText: { color: "#4a4455", fontSize: 14 },
-  chipTextSelected: { color: "#ffffff", fontWeight: "700" },
-  summaryBox: {
-    backgroundColor: "#ffffff", borderRadius: 14, padding: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: "#e5eeff",
-  },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
-  summaryLabel: { color: "#7b7486", fontSize: 14 },
-  summaryValue: { color: "#4a4455", fontSize: 14 },
-  totalRow: { borderTopWidth: 1, borderTopColor: "#e5eeff", marginTop: 8, paddingTop: 12 },
-  totalLabel: { color: "#0b1c30", fontSize: 16, fontWeight: "700" },
-  totalValue: { color: "#0b1c30", fontSize: 16, fontWeight: "700" },
-  orderBtn: { backgroundColor: "#6d28d9", borderRadius: 14, padding: 20, alignItems: "center" },
-  orderBtnDisabled: { opacity: 0.55 },
-  orderBtnText: { color: "#ffffff", fontWeight: "700", fontSize: 17 },
+  totalLabel: { fontSize: 14, fontWeight: T.bold, color: T.dark },
+  totalValue: { fontSize: 14, fontWeight: T.bold, color: T.dark },
+
+  placeBtn: { backgroundColor: T.pink, margin: 16, paddingVertical: 16, alignItems: "center", borderRadius: T.radius },
+  placeBtnDisabled: { opacity: 0.5 },
+  placeBtnText: { color: T.white, fontWeight: T.bold, fontSize: 14, letterSpacing: 1 },
+
+  empty: { flex: 1, backgroundColor: T.white, alignItems: "center", justifyContent: "center", padding: 32 },
+  emptyIcon: { fontSize: 64, marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: T.bold, color: T.dark, marginBottom: 8, letterSpacing: 1 },
+  emptySub: { color: T.gray, fontSize: 14, marginBottom: 28 },
+  browseBtn: { backgroundColor: T.pink, borderRadius: T.radius, paddingHorizontal: 32, paddingVertical: 14 },
+  browseBtnText: { color: T.white, fontWeight: T.bold, fontSize: 14, letterSpacing: 1 },
 });
