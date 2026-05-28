@@ -75,6 +75,11 @@ export interface Order {
   createdAt: string;
 }
 
+export interface WishlistItem {
+  productId: string;
+  createdAt: string;
+}
+
 export interface AgentLocation {
   agentId: string;
   orderId: string;

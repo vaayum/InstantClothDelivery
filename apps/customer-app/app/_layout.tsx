@@ -3,6 +3,7 @@ import { View, ActivityIndicator } from "react-native";
 import { Stack, router } from "expo-router";
 import { getToken } from "./lib/api";
 import { CartProvider } from "./context/CartContext";
+import { WishlistProvider } from "./context/WishlistContext";
 
 export default function RootLayout() {
   const [token, setToken] = useState<string | null | undefined>(undefined);
@@ -25,7 +26,8 @@ export default function RootLayout() {
   }
 
   return (
-    <CartProvider>
+    <WishlistProvider>
+      <CartProvider>
       <Stack>
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -33,6 +35,7 @@ export default function RootLayout() {
         <Stack.Screen name="product/[id]" options={{ title: "Product" }} />
         <Stack.Screen name="cart" options={{ title: "Cart" }} />
       </Stack>
-    </CartProvider>
+      </CartProvider>
+    </WishlistProvider>
   );
 }
