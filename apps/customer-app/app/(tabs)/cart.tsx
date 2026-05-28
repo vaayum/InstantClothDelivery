@@ -1,18 +1,17 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, Alert,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { api, clearSession } from "../lib/api";
 import { useCart } from "../context/CartContext";
-import type { Address, PaymentMethod } from "../lib/types";
+import type { Address, MeResponse, PaymentMethod } from "../lib/types";
 
 const PAYMENT_OPTIONS: PaymentMethod[] = ["UPI", "CARD", "NET_BANKING", "COD"];
 
 export default function CartScreen() {
   const { items, removeItem, updateQty, clearCart, totalPrice } = useCart();
-  const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("UPI");
   const [isTryOrder, setIsTryOrder] = useState(false);
@@ -22,33 +21,22 @@ export default function CartScreen() {
   const deliveryFee = paymentMethod === "COD" ? 2000 : 0;
   const total = totalPrice + deliveryFee;
 
-  const loadAddresses = useCallback(async () => {
+  const loadPrimaryAddress = useCallback(async () => {
     try {
-      const res = await api.get<Address[]>("/api/addresses");
-      setAddresses(res.data);
-      if (res.data.length > 0) setSelectedAddress(res.data[0]);
+      const [addrRes, meRes] = await Promise.all([
+        api.get<Address[]>("/api/addresses"),
+        api.get<MeResponse>("/api/me"),
+      ]);
+      const primaryId = meRes.data.user.primaryAddressId;
+      const primary = addrRes.data.find((a) => a.id === primaryId) ?? addrRes.data[0] ?? null;
+      setSelectedAddress(primary);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) { await clearSession(); router.replace("/login"); }
     }
   }, []);
 
-  function handleAddressSelect(addr: Address) {
-    if (!selectedAddress || selectedAddress.id === addr.id) {
-      setSelectedAddress(addr);
-      return;
-    }
-    Alert.alert(
-      "Change delivery address?",
-      "Items in your cart may not be available at this address. You'll be notified at checkout if anything can't be fulfilled.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Change", onPress: () => setSelectedAddress(addr) },
-      ]
-    );
-  }
-
-  useEffect(() => { loadAddresses(); }, [loadAddresses]);
+  useFocusEffect(useCallback(() => { loadPrimaryAddress(); }, [loadPrimaryAddress]));
 
   async function placeOrder() {
     if (!selectedAddress) { Alert.alert("No address", "Add a delivery address in your Profile first."); return; }
@@ -181,20 +169,21 @@ export default function CartScreen() {
         </TouchableOpacity>
       )}
 
-      <Text style={s.sectionLabel}>Deliver to</Text>
-      {addresses.length === 0 ? (
-        <Text style={s.noAddr}>Add a delivery address in your Profile first.</Text>
+      <View style={s.addrHeader}>
+        <Text style={s.sectionLabel}>Deliver to</Text>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+          <Text style={s.changeAddrLink}>Change →</Text>
+        </TouchableOpacity>
+      </View>
+      {selectedAddress ? (
+        <View style={s.addrCard}>
+          <Text style={s.addrLabel}>{selectedAddress.label}</Text>
+          <Text style={s.addrText}>{selectedAddress.formattedAddress}</Text>
+        </View>
       ) : (
-        addresses.map((addr) => (
-          <TouchableOpacity
-            key={addr.id}
-            style={[s.addrCard, selectedAddress?.id === addr.id && s.addrSelected]}
-            onPress={() => handleAddressSelect(addr)}
-          >
-            <Text style={s.addrLabel}>{addr.label}</Text>
-            <Text style={s.addrText}>{addr.formattedAddress}</Text>
-          </TouchableOpacity>
-        ))
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+          <Text style={s.noAddr}>No delivery address — tap to add one in Profile</Text>
+        </TouchableOpacity>
       )}
 
       <Text style={s.sectionLabel}>Payment</Text>
@@ -285,16 +274,17 @@ const s = StyleSheet.create({
   toggleOn: { backgroundColor: "#6d28d9" },
   thumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
   thumbOn: { alignSelf: "flex-end" },
+  addrHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8, marginBottom: 10 },
   sectionLabel: {
     color: "#7b7486", fontSize: 11, fontWeight: "700", textTransform: "uppercase",
-    letterSpacing: 1.2, marginBottom: 10, marginTop: 8,
+    letterSpacing: 1.2,
   },
-  noAddr: { color: "#7b7486", fontSize: 14, marginBottom: 16 },
+  changeAddrLink: { color: "#6d28d9", fontSize: 13, fontWeight: "600" },
+  noAddr: { color: "#6d28d9", fontSize: 14, marginBottom: 16 },
   addrCard: {
     backgroundColor: "#ffffff", borderRadius: 12, padding: 14,
-    marginBottom: 8, borderWidth: 2, borderColor: "#e5eeff",
+    marginBottom: 8, borderWidth: 1.5, borderColor: "#6d28d9", backgroundColor: "#f5f0ff",
   },
-  addrSelected: { borderColor: "#6d28d9", backgroundColor: "#f5f0ff" },
   addrLabel: { color: "#0b1c30", fontWeight: "700", marginBottom: 2 },
   addrText: { color: "#7b7486", fontSize: 13 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
