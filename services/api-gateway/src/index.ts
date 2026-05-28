@@ -67,6 +67,7 @@ const routes: Record<string, string> = {
   "/api/notifications": `http://localhost:${process.env.NOTIFICATION_SERVICE_PORT ?? 3003}`,
   "/api/payments":      `http://localhost:${process.env.PAYMENT_SERVICE_PORT ?? 3004}`,
   "/api/agents":        `http://localhost:${process.env.AGENT_SERVICE_PORT ?? 3006}`,
+  "/api/wishlist":      `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
 };
 
 function restream(proxyReq: any, req: any) {
