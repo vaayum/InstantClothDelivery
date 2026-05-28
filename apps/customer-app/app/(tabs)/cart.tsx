@@ -33,6 +33,21 @@ export default function CartScreen() {
     }
   }, []);
 
+  function handleAddressSelect(addr: Address) {
+    if (!selectedAddress || selectedAddress.id === addr.id) {
+      setSelectedAddress(addr);
+      return;
+    }
+    Alert.alert(
+      "Change delivery address?",
+      "Items in your cart may not be available at this address. You'll be notified at checkout if anything can't be fulfilled.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Change", onPress: () => setSelectedAddress(addr) },
+      ]
+    );
+  }
+
   useEffect(() => { loadAddresses(); }, [loadAddresses]);
 
   async function placeOrder() {
@@ -174,7 +189,7 @@ export default function CartScreen() {
           <TouchableOpacity
             key={addr.id}
             style={[s.addrCard, selectedAddress?.id === addr.id && s.addrSelected]}
-            onPress={() => setSelectedAddress(addr)}
+            onPress={() => handleAddressSelect(addr)}
           >
             <Text style={s.addrLabel}>{addr.label}</Text>
             <Text style={s.addrText}>{addr.formattedAddress}</Text>

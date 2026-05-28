@@ -93,25 +93,14 @@ export default function HomeScreen() {
 
   const { isWishlisted, add: addToWishlist, remove: removeFromWishlist } = useWishlist();
 
-  const checkPin = useCallback(async () => {
-    try {
-      const res = await api.get<MeResponse>("/api/me");
-      setPinnedWarehouseId(res.data.user.pinnedWarehouseId);
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } }).response?.status;
-      if (status === 401) { await clearSession(); router.replace("/login"); }
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => { checkPin(); }, [checkPin]));
-
-  const load = useCallback(async (isRefresh = false) => {
+  const loadAll = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(false);
     try {
-      const url = pinnedWarehouseId
-        ? `/api/catalog?warehouseId=${pinnedWarehouseId}`
-        : "/api/catalog";
+      const meRes = await api.get<MeResponse>("/api/me");
+      const wid = meRes.data.user.pinnedWarehouseId;
+      setPinnedWarehouseId(wid);
+      const url = wid ? `/api/catalog?warehouseId=${wid}` : "/api/catalog";
       const res = await api.get<Product[]>(url);
       setProducts(res.data);
     } catch (err: unknown) {
@@ -122,11 +111,9 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [pinnedWarehouseId]);
+  }, []);
 
-  useEffect(() => {
-    if (pinnedWarehouseId !== undefined) load();
-  }, [pinnedWarehouseId, load]);
+  useFocusEffect(useCallback(() => { loadAll(); }, [loadAll]));
 
   const handleGenderChange = useCallback((g: Gender) => {
     setGender(g);
@@ -219,7 +206,7 @@ export default function HomeScreen() {
         numColumns={2}
         columnWrapperStyle={s.row}
         contentContainerStyle={s.grid}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#6d28d9" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadAll(true)} tintColor="#6d28d9" />}
         ListHeaderComponent={
           <View>
             {pinnedWarehouseId === null && (
