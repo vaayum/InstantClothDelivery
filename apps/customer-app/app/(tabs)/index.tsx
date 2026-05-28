@@ -281,7 +281,7 @@ export default function HomeScreen() {
                 {!available && (
                   <View style={s.unavailableOverlay}>
                     <Text style={s.unavailableText}>
-                      {pinnedWarehouseId ? "Not in\nyour area" : "Set\nlocation"}
+                      {pinnedWarehouseId ? "Out of stock\nnearby" : "Not available\nat your location"}
                     </Text>
                   </View>
                 )}

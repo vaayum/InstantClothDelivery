@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, ScrollView, TextInput, Alert, RefreshControl, Modal,
 } from "react-native";
 import MapView, { Marker, type Region, type MapPressEvent } from "react-native-maps";
 import * as Location from "expo-location";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCart } from "../context/CartContext";
 import { api, clearSession } from "../lib/api";
@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   const { clearCart } = useCart();
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
   const [primaryAddressId, setPrimaryAddressId] = useState<string | null>(null);
+  const initialFocusDone = useRef(false);
 
   const loadAddresses = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -56,6 +57,11 @@ export default function ProfileScreen() {
     }
     init();
   }, [loadAddresses]);
+
+  useFocusEffect(useCallback(() => {
+    if (!initialFocusDone.current) { initialFocusDone.current = true; return; }
+    loadAddresses();
+  }, [loadAddresses]));
 
   async function useCurrentLocation() {
     setLocating(true);
