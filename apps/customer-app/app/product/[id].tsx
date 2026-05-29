@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, ScrollView, Alert,
+  ActivityIndicator, ScrollView, Alert, Image,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -124,14 +124,36 @@ export default function ProductScreen() {
   return (
     <ScrollView style={s.scroll} contentContainerStyle={s.content}>
       <View style={s.imageBox}>
-        <Text style={s.heroEmoji}>👕</Text>
+        {product.images?.length > 0 ? (
+          <Image source={{ uri: product.images[0] }} style={s.heroImage} resizeMode="cover" />
+        ) : (
+          <Text style={s.heroEmoji}>👕</Text>
+        )}
       </View>
 
       <Text style={s.brand}>{product.brand} · {product.category}</Text>
       <Text style={s.name}>{product.name}</Text>
       <RatingRow />
-      <Text style={s.price}>₹{(product.price / 100).toFixed(0)}</Text>
-      {product.description ? <Text style={s.desc}>{product.description}</Text> : null}
+      {(() => {
+        const price = product.price / 100;
+        const mrp = product.mrp > 0 ? product.mrp / 100 : Math.round(price * 1.25);
+        const discount = Math.round(((mrp - price) / mrp) * 100);
+        return (
+          <View style={s.priceRow}>
+            <Text style={s.priceSell}>₹{price.toFixed(0)}</Text>
+            <Text style={s.priceMrp}>₹{mrp.toFixed(0)}</Text>
+            <View style={s.discountBadge}>
+              <Text style={s.discountBadgeText}>{discount}% OFF</Text>
+            </View>
+          </View>
+        );
+      })()}
+      {product.description ? (
+        <View style={s.descSection}>
+          <Text style={s.descSectionLabel}>Product Details</Text>
+          <Text style={s.desc}>{product.description}</Text>
+        </View>
+      ) : null}
       {product.isTryable && (
         <View style={s.tryBadge}><Text style={s.tryBadgeText}>Try Before You Keep eligible</Text></View>
       )}
@@ -151,27 +173,26 @@ export default function ProductScreen() {
 
       {selectedSize && (
         <>
-          <Text style={s.sectionLabel}>Color</Text>
-          <View style={s.chipRow}>
+          <Text style={s.sectionLabel}>
+            Color{selectedSku ? `: ${selectedSku.color}` : ""}
+          </Text>
+          <View style={s.swatchRow}>
             {colorsForSize.map((sku) => {
               const unavailable = sku.available === false;
+              const isSelected = selectedSku?.id === sku.id;
               return (
                 <TouchableOpacity
                   key={sku.id}
-                  style={[
-                    s.chip,
-                    selectedSku?.id === sku.id && s.chipSelected,
-                    unavailable && s.chipUnavailable,
-                  ]}
+                  style={[s.swatchOuter, isSelected && s.swatchOuterSelected]}
                   onPress={() => setSelectedSku(sku)}
+                  disabled={unavailable}
                 >
-                  <Text style={[
-                    s.chipText,
-                    selectedSku?.id === sku.id && s.chipTextSelected,
-                    unavailable && s.chipTextUnavailable,
-                  ]}>
-                    {sku.color}
-                  </Text>
+                  <View style={[
+                    s.swatchInner,
+                    { backgroundColor: sku.colorHex ?? "#CCCCCC" },
+                    sku.color === "White" && s.swatchWhiteBorder,
+                    unavailable && s.swatchFaded,
+                  ]} />
                 </TouchableOpacity>
               );
             })}
@@ -231,6 +252,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   heroEmoji: { fontSize: 96 },
+  heroImage: { width: "100%", height: "100%", borderRadius: T.radiusMd },
 
   brand: {
     color: T.gray, fontSize: 12, marginTop: 16, marginHorizontal: 20,
@@ -240,14 +262,43 @@ const s = StyleSheet.create({
     color: T.dark, fontSize: 20, marginHorizontal: 20, marginTop: 4,
     fontFamily: T.font.semi, lineHeight: 26,
   },
-  price: {
-    color: T.dark, fontSize: 22, marginHorizontal: 20, marginTop: 4,
-    fontFamily: T.font.bold,
+  priceRow: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    marginHorizontal: 20, marginTop: 6, flexWrap: "wrap",
+  },
+  priceSell: {
+    color: T.dark, fontSize: 22, fontFamily: T.font.bold,
+  },
+  priceMrp: {
+    color: T.gray, fontSize: 16, fontFamily: T.font.regular,
+    textDecorationLine: "line-through",
+  },
+  discountBadge: {
+    backgroundColor: "#E8F5E9", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  discountBadgeText: {
+    color: T.green, fontSize: 13, fontFamily: T.font.bold,
+  },
+  descSection: {
+    marginHorizontal: 20, marginTop: 20,
+    borderTopWidth: 1, borderTopColor: T.border, paddingTop: 16,
+  },
+  descSectionLabel: {
+    color: T.dark, fontSize: 13, letterSpacing: 0.5, marginBottom: 8,
+    fontFamily: T.font.bold, textTransform: "uppercase",
   },
   desc: {
-    color: T.mid, fontSize: 14, marginHorizontal: 20, marginTop: 8,
-    lineHeight: 20, fontFamily: T.font.regular,
+    color: T.mid, fontSize: 14, lineHeight: 22, fontFamily: T.font.regular,
   },
+  swatchRow: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingHorizontal: 20 },
+  swatchOuter: {
+    width: 38, height: 38, borderRadius: 19, borderWidth: 2, borderColor: "transparent",
+    alignItems: "center", justifyContent: "center",
+  },
+  swatchOuterSelected: { borderColor: T.pink },
+  swatchInner: { width: 28, height: 28, borderRadius: 14 },
+  swatchWhiteBorder: { borderWidth: 1, borderColor: "#DDD" },
+  swatchFaded: { opacity: 0.35 },
   tryBadge: {
     backgroundColor: T.pinkLight, borderRadius: T.radiusMd,
     paddingHorizontal: 12, paddingVertical: 6,

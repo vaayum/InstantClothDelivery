@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator, RefreshControl, Alert,
-  Modal, Pressable, Platform, ScrollView,
+  Modal, Pressable, Platform, ScrollView, Image,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import * as Location from "expo-location";
@@ -454,7 +454,11 @@ export default function HomeScreen() {
               activeOpacity={available ? 0.9 : 1}
             >
               <View style={s.imgBlock}>
-                <Text style={s.imgEmoji}>👕</Text>
+                {item.images?.length > 0 ? (
+                  <Image source={{ uri: item.images[0] }} style={s.productImage} resizeMode="cover" />
+                ) : (
+                  <Text style={s.imgEmoji}>👕</Text>
+                )}
                 {item.isTryable && available && (
                   <View style={s.tryBadge}><Text style={s.tryText}>TRY</Text></View>
                 )}
@@ -720,6 +724,7 @@ const s = StyleSheet.create({
   card: { flex: 1, backgroundColor: T.white },
   imgBlock: { height: 220, alignItems: "center", justifyContent: "center", backgroundColor: T.lightBg },
   imgEmoji: { fontSize: 64 },
+  productImage: { width: "100%", height: "100%", borderRadius: T.radiusMd },
   tryBadge: {
     position: "absolute", top: 8, left: 8,
     backgroundColor: T.green, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 2,
