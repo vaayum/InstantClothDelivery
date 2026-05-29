@@ -101,6 +101,14 @@ export interface Banner {
   actionValue: string;  // "20" | "new_arrivals" etc.
 }
 
+export interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  createdAt: string;
+}
+
 export interface MeResponse {
   user: {
     userId: string;
