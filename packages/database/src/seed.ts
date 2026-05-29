@@ -2,6 +2,27 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+const brands = [
+  { id: "brand-nike",     name: "Nike",     slug: "nike",     logoUrl: null },
+  { id: "brand-zara",     name: "Zara",     slug: "zara",     logoUrl: null },
+  { id: "brand-hm",       name: "H&M",      slug: "hm",       logoUrl: null },
+  { id: "brand-puma",     name: "Puma",     slug: "puma",     logoUrl: null },
+  { id: "brand-adidas",   name: "Adidas",   slug: "adidas",   logoUrl: null },
+  { id: "brand-levis",    name: "Levis",    slug: "levis",    logoUrl: null },
+  { id: "brand-tommy",    name: "Tommy",    slug: "tommy",    logoUrl: null },
+  { id: "brand-arrow",    name: "Arrow",    slug: "arrow",    logoUrl: null },
+  { id: "brand-mango",    name: "Mango",    slug: "mango",    logoUrl: null },
+  { id: "brand-uniqlo",   name: "Uniqlo",   slug: "uniqlo",   logoUrl: null },
+  { id: "brand-fabindia", name: "Fabindia", slug: "fabindia", logoUrl: null },
+  { id: "brand-and",      name: "AND",      slug: "and",      logoUrl: null },
+  { id: "brand-biba",     name: "Biba",     slug: "biba",     logoUrl: null },
+  { id: "brand-roadster", name: "Roadster", slug: "roadster", logoUrl: null },
+];
+
+function brandIdFor(name: string): string | undefined {
+  return brands.find((b) => b.name === name)?.id;
+}
+
 type SkuSeed = { id: string; size: string; color: string; colorHex: string; barcode: string };
 type ProductSeed = {
   id: string;
@@ -162,6 +183,11 @@ const products: ProductSeed[] = [
 ];
 
 async function main(): Promise<void> {
+  for (const b of brands) {
+    await prisma.brand.upsert({ where: { id: b.id }, update: {}, create: b });
+  }
+  console.log("Brands seeded:", brands.length);
+
   const zone = await prisma.zone.upsert({
     where: { id: "zone-bengaluru-central" },
     update: {},
@@ -198,6 +224,7 @@ async function main(): Promise<void> {
         id: p.id,
         name: p.name,
         brand: p.brand,
+        brandId: brandIdFor(p.brand),
         category: p.category,
         gender: p.gender,
         price: p.price,

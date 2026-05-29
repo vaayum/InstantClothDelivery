@@ -200,10 +200,23 @@ model Warehouse {
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
+model Brand {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  slug      String    @unique
+  logoUrl   String?
+  createdAt DateTime  @default(now())
+
+  products  Product[]
+
+  @@map("brands")
+}
+
 model Product {
   id          String   @id @default(uuid())
   name        String
   brand       String
+  brandId     String?
   category    String
   gender      String   @default("Unisex")
   description String?
@@ -215,6 +228,7 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  brandRef  Brand?    @relation(fields: [brandId], references: [id])
   skus      Sku[]
   wishlists Wishlist[]
 
