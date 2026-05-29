@@ -66,14 +66,15 @@ const ALL_CHIP: ChipItem = { label: "All", matches: null };
 const BANNERS = [
   { id: "1", label: "UP TO 70% OFF", sub: "Best of Fashion", bg: T.pink, textColor: T.white },
   { id: "2", label: "NEW ARRIVALS",  sub: "Fresh Styles Daily", bg: T.dark, textColor: T.white },
-  { id: "3", label: "TRENDY PICKS",  sub: "Curated For You", bg: "#1a1a2e", textColor: T.pink },
+  { id: "3", label: "TRENDY PICKS",  sub: "Curated For You", bg: T.dark, textColor: T.pink },
 ];
 
 function PromoBanner() {
   return (
     <ScrollView
       horizontal
-      pagingEnabled
+      snapToInterval={328}
+      decelerationRate="fast"
       showsHorizontalScrollIndicator={false}
       style={pb.scroll}
       contentContainerStyle={pb.content}
