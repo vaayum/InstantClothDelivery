@@ -60,7 +60,7 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === "ios" ? "padding" : "height"}>
 
         <View style={s.logoBlock}>
-          <Text style={s.logoText}>myntra</Text>
+          <Text style={s.logoText}>threaddash</Text>
           <Text style={s.logoSub}>FASHION DELIVERED IN 30 MINS</Text>
         </View>
 

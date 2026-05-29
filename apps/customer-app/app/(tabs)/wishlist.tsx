@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl,
@@ -21,6 +21,9 @@ export default function WishlistScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pinnedWarehouseId, setPinnedWarehouseId] = useState<string | null>(null);
 
+  const wishlistIdsRef = useRef(wishlistIds);
+  useEffect(() => { wishlistIdsRef.current = wishlistIds; }, [wishlistIds]);
+
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
@@ -28,11 +31,12 @@ export default function WishlistScreen() {
       const wid = meRes.data.user.pinnedWarehouseId;
       setPinnedWarehouseId(wid);
 
-      if (wishlistIds.size === 0) { setProducts([]); return; }
+      const ids = wishlistIdsRef.current;
+      if (ids.size === 0) { setProducts([]); return; }
 
       const url = wid ? `/api/catalog?warehouseId=${wid}` : "/api/catalog";
       const res = await api.get<Product[]>(url);
-      setProducts(res.data.filter((p) => wishlistIds.has(p.id)));
+      setProducts(res.data.filter((p) => ids.has(p.id)));
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) { await clearSession(); router.replace("/login"); }
@@ -40,7 +44,7 @@ export default function WishlistScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [wishlistIds]);
+  }, []);
 
   useFocusEffect(useCallback(() => {
     refreshWishlist().then(() => load());

@@ -255,7 +255,7 @@ export default function HomeScreen() {
         ListHeaderComponent={
           <View>
             <View style={s.appBar}>
-              <Text style={s.appBarBrand}>myntra</Text>
+              <Text style={s.appBarBrand}>threaddash</Text>
               <View style={s.appBarRight}>
                 <Ionicons name="notifications-outline" size={22} color={T.dark} style={s.notifIcon} />
                 <Ionicons name="person-outline" size={22} color={T.dark} />
