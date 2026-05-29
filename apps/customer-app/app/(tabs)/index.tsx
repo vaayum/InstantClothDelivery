@@ -217,7 +217,7 @@ export default function HomeScreen() {
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) { await clearSession(); router.replace("/login"); }
-      else setError(true);
+      else { setError(true); setPinnedWarehouseId((p) => p === undefined ? null : p); }
     } finally {
       setLoading(false);
       setRefreshing(false);
