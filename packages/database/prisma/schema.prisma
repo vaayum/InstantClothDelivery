@@ -208,6 +208,7 @@ model Product {
   gender      String   @default("Unisex")
   description String?
   price       Int
+  mrp         Int      @default(0)
   images      Json
   isActive    Boolean  @default(true)
   isTryable   Boolean  @default(true)
@@ -225,6 +226,7 @@ model Sku {
   productId String
   size      String
   color     String
+  colorHex  String   @default("#CCCCCC")
   barcode   String   @unique
   createdAt DateTime @default(now())
 
@@ -438,4 +440,24 @@ model Wishlist {
 
   @@unique([userId, productId])
   @@map("wishlists")
+}
+
+// ─── Banners ──────────────────────────────────────────────────────────────────
+
+model Banner {
+  id          String    @id @default(uuid())
+  title       String
+  subtitle    String
+  bgColor     String    @default("#282C3F")
+  textColor   String    @default("#FFFFFF")
+  actionType  String    // "discount" | "sort"
+  actionValue String    // e.g. "20" for discount, "new_arrivals" for sort
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("banners")
 }
