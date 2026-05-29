@@ -81,6 +81,13 @@ export default function TaskPage({ task, onBack, onComplete }: Props) {
                   <div>
                     <p style={s.skuCode}>{item.sku.sku}</p>
                     <p style={s.skuDetail}>{item.sku.color} · {item.sku.size} · qty {item.quantity}</p>
+                    {item.binLocationCode ? (
+                      <div style={{ marginTop: '6px', padding: '4px 10px', background: '#0d2a1a', borderRadius: '6px', fontFamily: 'monospace', fontSize: '13px', color: '#4ade80', display: 'inline-block' }}>
+                        Bin: {item.binLocationCode}
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#f59e0b' }}>No bin assigned</div>
+                    )}
                   </div>
                   <span style={{
                     ...s.itemBadge,
