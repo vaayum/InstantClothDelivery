@@ -63,6 +63,77 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
 
 const ALL_CHIP: ChipItem = { label: "All", matches: null };
 
+const BANNERS = [
+  { id: "1", label: "UP TO 70% OFF", sub: "Best of Fashion", bg: T.pink, textColor: T.white },
+  { id: "2", label: "NEW ARRIVALS",  sub: "Fresh Styles Daily", bg: T.dark, textColor: T.white },
+  { id: "3", label: "TRENDY PICKS",  sub: "Curated For You", bg: "#1a1a2e", textColor: T.pink },
+];
+
+function PromoBanner() {
+  return (
+    <ScrollView
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      style={pb.scroll}
+      contentContainerStyle={pb.content}
+    >
+      {BANNERS.map((b) => (
+        <View key={b.id} style={[pb.banner, { backgroundColor: b.bg }]}>
+          <Text style={[pb.label, { color: b.textColor }]}>{b.label}</Text>
+          <Text style={[pb.sub, { color: b.textColor }]}>{b.sub}</Text>
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+const pb = StyleSheet.create({
+  scroll:   { marginBottom: 8 },
+  content:  { paddingHorizontal: 12 },
+  banner:   { width: 320, height: 130, marginHorizontal: 4, borderRadius: T.radiusMd, alignItems: "center", justifyContent: "center", padding: 20 },
+  label:    { fontFamily: T.font.bold, fontSize: 22, letterSpacing: 1 },
+  sub:      { fontFamily: T.font.regular, fontSize: 13, marginTop: 4, opacity: 0.85 },
+});
+
+const BRANDS = [
+  { id: "1", name: "Nike",   initial: "N", bg: "#000000" },
+  { id: "2", name: "Zara",   initial: "Z", bg: "#2d2d2d" },
+  { id: "3", name: "H&M",    initial: "H", bg: "#e50010" },
+  { id: "4", name: "Puma",   initial: "P", bg: "#e60012" },
+  { id: "5", name: "Adidas", initial: "A", bg: "#000000" },
+  { id: "6", name: "Levis",  initial: "L", bg: "#c8102e" },
+  { id: "7", name: "Tommy",  initial: "T", bg: "#003087" },
+  { id: "8", name: "Arrow",  initial: "A", bg: "#1a1a1a" },
+];
+
+function BrandStories() {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={bs.content}
+      style={bs.scroll}
+    >
+      {BRANDS.map((b) => (
+        <View key={b.id} style={bs.item}>
+          <View style={[bs.circle, { backgroundColor: b.bg }]}>
+            <Text style={bs.initial}>{b.initial}</Text>
+          </View>
+          <Text style={bs.name}>{b.name}</Text>
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+const bs = StyleSheet.create({
+  scroll:   { backgroundColor: T.white, marginBottom: 8 },
+  content:  { paddingHorizontal: 12, paddingVertical: 8 },
+  item:     { alignItems: "center", marginHorizontal: 8 },
+  circle:   { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: T.pink },
+  initial:  { color: T.white, fontFamily: T.font.bold, fontSize: 18 },
+  name:     { fontSize: 10, color: T.dark, fontFamily: T.font.regular, marginTop: 4 },
+});
+
 function isProductAvailable(product: Product): boolean {
   if (!product.skus.length) return false;
   return product.skus.some((s) => s.available === true);
@@ -209,6 +280,8 @@ export default function HomeScreen() {
                 </View>
               </TouchableOpacity>
             )}
+            <PromoBanner />
+            <BrandStories />
             <View style={s.resultRow}>
               <Text style={s.resultCount}>{filtered.length} items</Text>
             </View>
