@@ -1,6 +1,9 @@
+import type { ComponentProps } from "react";
 import { Text, View } from "react-native";
 import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useCart } from "../context/CartContext";
+import { T } from "../lib/theme";
 
 function CartBadge() {
   const { totalItems } = useCart();
@@ -8,12 +11,44 @@ function CartBadge() {
   return (
     <View style={{
       position: "absolute", top: -4, right: -8,
-      backgroundColor: "#ef4444", borderRadius: 8,
+      backgroundColor: T.pink, borderRadius: 8,
       minWidth: 16, height: 16, alignItems: "center", justifyContent: "center",
       paddingHorizontal: 3,
     }}>
-      <Text style={{ color: "#fff", fontSize: 10, fontWeight: "bold" }}>
+      <Text style={{ color: T.white, fontSize: 10, fontFamily: T.font.bold }}>
         {totalItems > 9 ? "9+" : totalItems}
+      </Text>
+    </View>
+  );
+}
+
+type TabIconName = ComponentProps<typeof Ionicons>["name"];
+type IconProps = {
+  focused: boolean;
+  label: string;
+  icon: TabIconName;
+  iconFocused: TabIconName;
+  badge?: boolean;
+};
+
+function TabIcon({ focused, label, icon, iconFocused, badge }: IconProps) {
+  return (
+    <View style={{ alignItems: "center", paddingTop: 6 }}>
+      <View>
+        <Ionicons
+          name={focused ? iconFocused : icon}
+          size={24}
+          color={focused ? T.pink : T.gray}
+        />
+        {badge && <CartBadge />}
+      </View>
+      <Text style={{
+        fontSize: 10,
+        fontFamily: focused ? T.font.semi : T.font.regular,
+        color: focused ? T.pink : T.gray,
+        marginTop: 2,
+      }}>
+        {label}
       </Text>
     </View>
   );
@@ -24,42 +59,55 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: "#ffffff",
-          borderTopColor: "#e5eeff",
+          backgroundColor: T.white,
+          borderTopColor: T.border,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: 64,
         },
-        tabBarActiveTintColor: "#5300b7",
-        tabBarInactiveTintColor: "#7b7486",
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Browse" }} />
       <Tabs.Screen
-        name="cart"
+        name="index"
         options={{
-          title: "Bag",
-          tabBarIcon: ({ color }) => (
-            <View>
-              <Text style={{ fontSize: 20, color }}>🛍</Text>
-              <CartBadge />
-            </View>
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} label="Home" icon="home-outline" iconFocused="home" />
           ),
         }}
       />
-      <Tabs.Screen name="orders" options={{ title: "Orders" }} />
       <Tabs.Screen
         name="wishlist"
         options={{
-          title: "Wishlist",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>🤍</Text>
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} label="Wishlist" icon="heart-outline" iconFocused="heart" />
           ),
         }}
       />
-      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+      <Tabs.Screen
+        name="cart"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} label="Bag" icon="bag-outline" iconFocused="bag" badge />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} label="Orders" icon="receipt-outline" iconFocused="receipt" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} label="Profile" icon="person-outline" iconFocused="person" />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

@@ -6,6 +6,9 @@ import {
 import { useFocusEffect, router } from "expo-router";
 import { api } from "../lib/api";
 import type { Order, OrderStatus } from "../lib/types";
+import { T } from "../lib/theme";
+import type { ComponentProps } from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING: "Placed",
@@ -23,68 +26,79 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   RESCHEDULED: "Rescheduled",
 };
 
-const STATUS_PILL: Partial<Record<OrderStatus, { bg: string; text: string }>> = {
-  COMPLETED:            { bg: "#dcfce7", text: "#15803d" },
-  DELIVERED:            { bg: "#dcfce7", text: "#15803d" },
-  PARTIALLY_DELIVERED:  { bg: "#fef9c3", text: "#a16207" },
-  RETURNED:             { bg: "#f3f4f6", text: "#4b5563" },
-  CANCELLED:            { bg: "#fee2e2", text: "#b91c1c" },
-  TRIAL_IN_PROGRESS:    { bg: "#ede9fe", text: "#7c3aed" },
-  AGENT_EN_ROUTE:       { bg: "#dbeafe", text: "#1d4ed8" },
-  ARRIVED:              { bg: "#fef9c3", text: "#a16207" },
-  RESCHEDULED:          { bg: "#fce7f3", text: "#9d174d" },
+const STATUS_CONFIG: Partial<Record<OrderStatus, { color: string; bg: string }>> = {
+  COMPLETED:           { color: T.green, bg: T.greenLight },
+  DELIVERED:           { color: T.green, bg: T.greenLight },
+  PARTIALLY_DELIVERED: { color: T.orange, bg: "#FFF3E0" },
+  RETURNED:            { color: T.gray, bg: T.lightBg },
+  CANCELLED:           { color: "#FF0000", bg: "#FFF0F0" },
+  TRIAL_IN_PROGRESS:   { color: T.pink, bg: T.pinkLight },
+  AGENT_EN_ROUTE:      { color: "#1565C0", bg: "#E3F2FD" },
+  ARRIVED:             { color: T.orange, bg: "#FFF3E0" },
+  RESCHEDULED:         { color: T.mid, bg: T.lightBg },
 };
 
+function StatusIcon({ status }: { status: string }) {
+  type IconName = ComponentProps<typeof Ionicons>["name"];
+  const map: Record<string, { name: IconName; color: string }> = {
+    COMPLETED:            { name: "checkmark-circle",  color: T.green },
+    DELIVERED:            { name: "checkmark-circle",  color: T.green },
+    PARTIALLY_DELIVERED:  { name: "alert-circle",      color: T.orange },
+    RETURNED:             { name: "refresh-circle",    color: T.gray },
+    CANCELLED:            { name: "close-circle",      color: T.red },
+    PENDING:              { name: "time-outline",      color: T.gray },
+    WAREHOUSE_PROCESSING: { name: "cube-outline",      color: T.mid },
+    READY_FOR_PICKUP:     { name: "archive-outline",   color: T.mid },
+    AGENT_ASSIGNED:       { name: "bicycle-outline",   color: T.orange },
+    AGENT_EN_ROUTE:       { name: "bicycle-outline",   color: T.orange },
+    ARRIVED:              { name: "location",          color: T.pink },
+    TRIAL_IN_PROGRESS:    { name: "shirt-outline",     color: T.pink },
+    RESCHEDULED:          { name: "calendar-outline",  color: T.mid },
+  };
+  const cfg = map[status] ?? { name: "ellipse-outline" as IconName, color: T.gray };
+  return <Ionicons name={cfg.name} size={16} color={cfg.color} />;
+}
+
 function StatusPill({ status }: { status: OrderStatus }) {
-  const pill = STATUS_PILL[status] ?? { bg: "#e5eeff", text: "#4a4455" };
+  const cfg = STATUS_CONFIG[status] ?? { color: T.mid, bg: T.lightBg };
   return (
-    <View style={[sp.pill, { backgroundColor: pill.bg }]}>
-      <Text style={[sp.label, { color: pill.text }]}>{STATUS_LABELS[status]}</Text>
+    <View style={[sp.pill, { backgroundColor: cfg.bg }]}>
+      <StatusIcon status={status} />
+      <Text style={[sp.text, { color: cfg.color }]}>{STATUS_LABELS[status]}</Text>
     </View>
   );
 }
-
 const sp = StyleSheet.create({
-  pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  label: { fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 2, flexDirection: "row", alignItems: "center", gap: 4 },
+  text: { fontSize: 11, letterSpacing: 0.2, fontFamily: T.font.bold },
 });
 
 function OrderCard({ order }: { order: Order }) {
   const total = ((order.totalAmount + order.deliveryFee) / 100).toFixed(0);
   const preview = order.items.slice(0, 2).map((i) => i.productName).join(", ");
-  const extra = order.items.length > 2 ? ` +${order.items.length - 2}` : "";
+  const extra = order.items.length > 2 ? ` +${order.items.length - 2} more` : "";
   const date = new Date(order.createdAt).toLocaleDateString("en-IN", {
-    day: "numeric", month: "short",
+    day: "numeric", month: "short", year: "numeric",
   });
 
   return (
-    <TouchableOpacity
-      style={s.card}
-      onPress={() => router.push(`/order/${order.id}`)}
-      activeOpacity={0.8}
-    >
-      <View style={s.cardRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.orderId}>#{order.id.slice(-8).toUpperCase()}</Text>
-          <Text style={s.date}>{date}</Text>
+    <TouchableOpacity style={s.card} onPress={() => router.push(`/order/${order.id}`)} activeOpacity={0.85}>
+      <View style={s.cardTop}>
+        <View style={s.imgPlaceholder}>
+          <Text style={s.imgEmoji}>👕</Text>
         </View>
-        <View style={{ alignItems: "flex-end", gap: 4 }}>
-          <StatusPill status={order.status} />
-          {order.isTryOrder && (
-            <View style={s.tryBadge}>
-              <Text style={s.tryBadgeText}>Try &amp; Keep</Text>
-            </View>
-          )}
+        <View style={s.cardInfo}>
+          <Text style={s.itemNames} numberOfLines={2}>{preview}{extra}</Text>
+          <Text style={s.orderMeta}>Order #{order.id.slice(-8).toUpperCase()} · {date}</Text>
+          <Text style={s.amount}>₹{total}</Text>
         </View>
       </View>
-
-      <Text style={s.items} numberOfLines={1}>
-        {preview}{extra}
-      </Text>
-
-      <View style={s.cardFooter}>
-        <Text style={s.amount}>₹{total}</Text>
-        <Text style={s.arrow}>→</Text>
+      <View style={s.cardBottom}>
+        <StatusPill status={order.status} />
+        {order.isTryOrder && (
+          <View style={s.tryTag}><Text style={s.tryTagText}>Try &amp; Keep</Text></View>
+        )}
+        <Text style={s.details}>Details →</Text>
       </View>
     </TouchableOpacity>
   );
@@ -102,27 +116,19 @@ export default function OrdersScreen() {
     try {
       const res = await api.get<Order[]>("/api/orders");
       setOrders(res.data);
-    } catch {
-      setError("Could not load orders. Pull down to retry.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } catch { setError("Could not load orders. Pull down to retry."); }
+    finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useFocusEffect(useCallback(() => { fetchOrders(); }, [fetchOrders]));
 
   if (loading) {
-    return (
-      <View style={s.center}>
-        <ActivityIndicator color="#6d28d9" size="large" />
-      </View>
-    );
+    return <View style={s.center}><ActivityIndicator color={T.pink} size="large" /></View>;
   }
 
   return (
     <FlatList
-      style={s.list}
+      style={s.root}
       contentContainerStyle={orders.length === 0 ? s.emptyContainer : s.listContent}
       data={orders}
       keyExtractor={(o) => o.id}
@@ -131,19 +137,25 @@ export default function OrdersScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => { setRefreshing(true); fetchOrders(true); }}
-          tintColor="#6d28d9"
+          tintColor={T.pink}
         />
       }
       ListHeaderComponent={
-        <View style={s.headingBlock}>
-          <Text style={s.heading}>Order History</Text>
-          <Text style={s.headingSubtitle}>Track your active trials and past orders</Text>
+        <View style={s.header}>
+          <Text style={s.heading}>MY ORDERS</Text>
         </View>
       }
       ListEmptyComponent={
-        <Text style={s.empty}>
-          {error ?? "No orders yet. Browse and place your first order!"}
-        </Text>
+        <View style={s.emptyBlock}>
+          <Ionicons name="receipt-outline" size={56} color={T.mid} style={{ marginBottom: 16 }} />
+          <Text style={s.emptyTitle}>No orders yet</Text>
+          <Text style={s.emptySub}>{error ?? "Browse and place your first order!"}</Text>
+          {!error && (
+            <TouchableOpacity style={s.shopBtn} onPress={() => router.push("/(tabs)")}>
+              <Text style={s.shopBtnText}>SHOP NOW</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       }
       ItemSeparatorComponent={() => <View style={s.sep} />}
     />
@@ -151,39 +163,34 @@ export default function OrdersScreen() {
 }
 
 const s = StyleSheet.create({
-  list: { flex: 1, backgroundColor: "#f8f9ff" },
-  listContent: { padding: 20, paddingBottom: 40 },
-  emptyContainer: { flex: 1, padding: 20 },
-  center: { flex: 1, backgroundColor: "#f8f9ff", justifyContent: "center", alignItems: "center" },
+  root: { flex: 1, backgroundColor: T.lightBg },
+  listContent: { paddingBottom: 40 },
+  emptyContainer: { flex: 1 },
+  center: { flex: 1, backgroundColor: T.white, justifyContent: "center", alignItems: "center" },
 
-  headingBlock: { marginBottom: 20 },
-  heading: { fontSize: 28, fontWeight: "700", color: "#0b1c30" },
-  headingSubtitle: { fontSize: 13, color: "#7b7486", marginTop: 4 },
+  header: { backgroundColor: T.white, padding: 16, borderBottomWidth: 1, borderBottomColor: T.border, marginBottom: 1 },
+  heading: { fontSize: 16, fontFamily: T.font.bold, color: T.dark, letterSpacing: 1 },
 
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#e5eeff",
+  card: { backgroundColor: T.white, padding: 16 },
+  cardTop: { flexDirection: "row", gap: 12, marginBottom: 12 },
+  imgPlaceholder: {
+    width: 72, height: 88, backgroundColor: T.lightBg, borderRadius: T.radius,
+    alignItems: "center", justifyContent: "center",
   },
-  cardRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  orderId: { fontSize: 14, fontWeight: "700", color: "#0b1c30" },
-  date: { fontSize: 12, color: "#7b7486", marginTop: 2 },
+  imgEmoji: { fontSize: 32 },
+  cardInfo: { flex: 1, justifyContent: "center", gap: 4 },
+  itemNames: { fontSize: 14, fontFamily: T.font.semi, color: T.dark, lineHeight: 20 },
+  orderMeta: { fontSize: 12, color: T.gray, fontFamily: T.font.regular },
+  amount: { fontSize: 14, fontFamily: T.font.bold, color: T.dark },
+  cardBottom: { flexDirection: "row", alignItems: "center", gap: 8 },
+  tryTag: { backgroundColor: T.pinkLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
+  tryTagText: { color: T.pink, fontSize: 10, fontFamily: T.font.bold },
+  details: { marginLeft: "auto", color: T.pink, fontSize: 12, fontFamily: T.font.semi },
 
-  tryBadge: { backgroundColor: "#ede9fe", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  tryBadgeText: { color: "#7c3aed", fontSize: 10, fontWeight: "700" },
-
-  items: { color: "#4a4455", fontSize: 13, marginBottom: 12 },
-  cardFooter: { flexDirection: "row", alignItems: "center" },
-  amount: { color: "#0b1c30", fontWeight: "700", fontSize: 15, flex: 1 },
-  arrow: { color: "#6d28d9", fontSize: 16, fontWeight: "700" },
-
-  sep: { height: 10 },
-  empty: { color: "#7b7486", textAlign: "center", marginTop: 60, fontSize: 15, lineHeight: 22 },
+  sep: { height: 1, backgroundColor: T.border },
+  emptyBlock: { alignItems: "center", paddingTop: 80, paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 18, fontFamily: T.font.bold, color: T.dark, marginBottom: 8 },
+  emptySub: { fontSize: 14, color: T.gray, textAlign: "center", marginBottom: 24, fontFamily: T.font.regular },
+  shopBtn: { backgroundColor: T.pink, paddingHorizontal: 32, paddingVertical: 12, borderRadius: T.radius },
+  shopBtnText: { color: T.white, fontFamily: T.font.bold, letterSpacing: 1 },
 });

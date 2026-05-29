@@ -14,6 +14,7 @@ export interface Sku {
   productId: string;
   size: string;
   color: string;
+  colorHex: string;
   barcode: string;
   available?: boolean;
   quantityAvailable?: number;
@@ -28,9 +29,11 @@ export interface Product {
   gender: string;
   description: string | null;
   price: number;
+  mrp: number;
   images: string[];
   isActive: boolean;
   isTryable: boolean;
+  createdAt: string;
   skus: Sku[];
 }
 
@@ -88,11 +91,30 @@ export interface AgentLocation {
   timestamp: string;
 }
 
+export interface Banner {
+  id: string;
+  title: string;
+  subtitle: string;
+  bgColor: string;
+  textColor: string;
+  actionType: string;   // "discount" | "sort"
+  actionValue: string;  // "20" | "new_arrivals" etc.
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  createdAt: string;
+}
+
 export interface MeResponse {
   user: {
     userId: string;
     role: string;
     phone: string;
     pinnedWarehouseId: string | null;
+    primaryAddressId: string | null;
   };
 }

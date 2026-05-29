@@ -127,10 +127,11 @@ model User {
   stylePrefs        Json?
   isActive          Boolean    @default(true)
   fcmToken          String?
-  pinnedWarehouseId String?
-  pinnedEtaMinutes  Int?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  pinnedWarehouseId  String?
+  pinnedEtaMinutes   Int?
+  primaryAddressId   String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   addresses       Address[]
   orders          Order[]
@@ -199,20 +200,35 @@ model Warehouse {
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
+model Brand {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  slug      String    @unique
+  logoUrl   String?
+  createdAt DateTime  @default(now())
+
+  products  Product[]
+
+  @@map("brands")
+}
+
 model Product {
   id          String   @id @default(uuid())
   name        String
   brand       String
+  brandId     String?
   category    String
   gender      String   @default("Unisex")
   description String?
   price       Int
+  mrp         Int      @default(0)
   images      Json
   isActive    Boolean  @default(true)
   isTryable   Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  brandRef  Brand?    @relation(fields: [brandId], references: [id])
   skus      Sku[]
   wishlists Wishlist[]
 
@@ -224,6 +240,7 @@ model Sku {
   productId String
   size      String
   color     String
+  colorHex  String   @default("#CCCCCC")
   barcode   String   @unique
   createdAt DateTime @default(now())
 
@@ -437,4 +454,24 @@ model Wishlist {
 
   @@unique([userId, productId])
   @@map("wishlists")
+}
+
+// ─── Banners ──────────────────────────────────────────────────────────────────
+
+model Banner {
+  id          String    @id @default(uuid())
+  title       String
+  subtitle    String
+  bgColor     String    @default("#282C3F")
+  textColor   String    @default("#FFFFFF")
+  actionType  String    // "discount" | "sort"
+  actionValue String    // e.g. "20" for discount, "new_arrivals" for sort
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("banners")
 }

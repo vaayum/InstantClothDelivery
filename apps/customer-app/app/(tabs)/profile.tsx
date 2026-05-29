@@ -1,15 +1,18 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, ScrollView, TextInput, Alert, RefreshControl, Modal,
 } from "react-native";
 import MapView, { Marker, type Region, type MapPressEvent } from "react-native-maps";
 import * as Location from "expo-location";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCart } from "../context/CartContext";
 import { api, clearSession } from "../lib/api";
-import type { Address } from "../lib/types";
+import type { Address, MeResponse } from "../lib/types";
+import { T } from "../lib/theme";
+import type { ComponentProps } from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ProfileScreen() {
   const [phone, setPhone] = useState<string | null>(null);
@@ -28,12 +31,18 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const { clearCart } = useCart();
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
+  const [primaryAddressId, setPrimaryAddressId] = useState<string | null>(null);
+  const initialFocusDone = useRef(false);
 
   const loadAddresses = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await api.get<Address[]>("/api/addresses");
-      setAddresses(res.data);
+      const [addrRes, meRes] = await Promise.all([
+        api.get<Address[]>("/api/addresses"),
+        api.get<MeResponse>("/api/me"),
+      ]);
+      setAddresses(addrRes.data);
+      setPrimaryAddressId(meRes.data.user.primaryAddressId);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) { await clearSession(); router.replace("/login"); }
@@ -51,6 +60,11 @@ export default function ProfileScreen() {
     }
     init();
   }, [loadAddresses]);
+
+  useFocusEffect(useCallback(() => {
+    if (!initialFocusDone.current) { initialFocusDone.current = true; return; }
+    loadAddresses();
+  }, [loadAddresses]));
 
   async function useCurrentLocation() {
     setLocating(true);
@@ -117,7 +131,10 @@ export default function ProfileScreen() {
       const res = await api.post<{ warehouseChanged: boolean; deliveryAvailable: boolean }>(
         `/api/addresses/${addressId}/set-primary`
       );
-      if (res.data.warehouseChanged) {
+      setPrimaryAddressId(addressId);
+      if (!res.data.deliveryAvailable) {
+        Alert.alert("No delivery here", "No warehouse serves this area yet. We'll notify you when we expand.");
+      } else if (res.data.warehouseChanged) {
         clearCart();
         Alert.alert("Location updated", "Cart cleared — your new location is set.");
       } else {
@@ -137,36 +154,32 @@ export default function ProfileScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#6d28d9" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={T.pink} /></View>;
   }
 
   return (
     <ScrollView
-      style={s.scroll}
+      style={s.root}
       contentContainerStyle={s.content}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => loadAddresses(true)} tintColor="#6d28d9" />
+        <RefreshControl refreshing={refreshing} onRefresh={() => loadAddresses(true)} tintColor={T.pink} />
       }
     >
-      <Text style={s.heading}>Profile</Text>
-
-      {/* Account card */}
-      <View style={s.profileCard}>
-        <View style={s.avatarCircle}>
-          <Text style={s.avatarInitial}>{phone ? phone.slice(-2) : "??"}</Text>
+      {/* Dark hero */}
+      <View style={s.hero}>
+        <View style={s.avatar}>
+          <Text style={s.avatarText}>{phone ? phone.slice(-2) : "?"}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.phoneLabel}>REGISTERED ACCOUNT</Text>
-          <Text style={s.phone}>{phone ?? "—"}</Text>
-        </View>
+        <Text style={s.heroPhone}>{phone ?? "Guest"}</Text>
+        <Text style={s.heroSub}>ThreadDash Member</Text>
       </View>
 
-      {/* Addresses */}
-      <View style={s.section}>
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Saved Addresses</Text>
+      {/* Saved Addresses */}
+      <View style={s.card}>
+        <View style={s.cardTitleRow}>
+          <Text style={s.cardTitle}>SAVED ADDRESSES</Text>
           <TouchableOpacity onPress={() => setShowForm((v) => !v)}>
-            <Text style={s.addBtn}>{showForm ? "Cancel" : "+ Add New"}</Text>
+            <Text style={s.addLink}>{showForm ? "Cancel" : "+ Add New"}</Text>
           </TouchableOpacity>
         </View>
 
@@ -176,11 +189,10 @@ export default function ProfileScreen() {
             <TextInput
               style={s.input}
               placeholder="e.g. Home, Work, Gym"
-              placeholderTextColor="#7b7486"
+              placeholderTextColor={T.gray}
               value={label}
               onChangeText={setLabel}
             />
-
             <TouchableOpacity style={s.mapPickerBtn} onPress={() => setShowMap(true)}>
               <Text style={s.mapPickerIcon}>📍</Text>
               <View style={{ flex: 1 }}>
@@ -195,14 +207,13 @@ export default function ProfileScreen() {
               </View>
               {pickedCoords && <Text style={s.checkmark}>✓</Text>}
             </TouchableOpacity>
-
             <TouchableOpacity
               style={[s.saveBtn, (!label || !pickedCoords || saving) && s.saveBtnDisabled]}
               onPress={saveAddress}
               disabled={saving || !label || !pickedCoords}
             >
               {saving
-                ? <ActivityIndicator color="#fff" />
+                ? <ActivityIndicator color={T.white} />
                 : <Text style={s.saveBtnText}>Save Address</Text>}
             </TouchableOpacity>
           </View>
@@ -227,7 +238,7 @@ export default function ProfileScreen() {
                 : <Text style={s.modalHint}>Tap anywhere on the map to pin your location</Text>}
               <TouchableOpacity style={s.locateBtn} onPress={useCurrentLocation} disabled={locating}>
                 {locating
-                  ? <ActivityIndicator color="#fff" size="small" />
+                  ? <ActivityIndicator color={T.white} size="small" />
                   : <Text style={s.locateBtnText}>Use my location</Text>}
               </TouchableOpacity>
               <View style={s.modalActions}>
@@ -247,176 +258,147 @@ export default function ProfileScreen() {
         </Modal>
 
         {addresses.length === 0 && !showForm && (
-          <Text style={s.empty}>No saved addresses yet.</Text>
+          <Text style={s.emptyAddr}>No saved addresses yet.</Text>
         )}
 
-        {addresses.map((addr) => (
-          <View key={addr.id} style={s.addrCard}>
-            <View style={s.addrRow}>
-              <View style={{ flex: 1 }}>
-                <View style={s.addrLabelRow}>
-                  <Text style={s.addrLabel}>{addr.label}</Text>
+        {addresses.map((addr) => {
+          const isPrimary = addr.id === primaryAddressId;
+          return (
+            <View key={addr.id} style={[s.addrRow, isPrimary && s.addrRowPrimary]}>
+              <View style={s.addrContent}>
+                <View style={s.addrTitleRow}>
+                  <View style={s.addrTypeTag}>
+                    <Text style={s.addrTypeText}>{addr.label.toUpperCase()}</Text>
+                  </View>
+                  {isPrimary && (
+                    <View style={s.primaryTag}><Text style={s.primaryTagText}>DELIVERING HERE</Text></View>
+                  )}
                   {addr.isSafeDrop && (
-                    <View style={s.safeDropBadge}>
-                      <Text style={s.safeDropText}>Safe Drop</Text>
-                    </View>
+                    <View style={s.safeDropTag}><Text style={s.safeDropText}>Safe Drop</Text></View>
                   )}
                 </View>
                 <Text style={s.addrText} numberOfLines={2}>{addr.formattedAddress}</Text>
               </View>
-              <TouchableOpacity
-                style={s.deliverBtn}
-                onPress={() => setPrimary(addr.id)}
-                disabled={settingPrimary === addr.id}
-              >
-                {settingPrimary === addr.id
-                  ? <ActivityIndicator size="small" color="#6d28d9" />
-                  : <Text style={s.deliverBtnText}>Deliver here</Text>}
-              </TouchableOpacity>
+              {!isPrimary && (
+                <TouchableOpacity
+                  style={s.deliverBtn}
+                  onPress={() => setPrimary(addr.id)}
+                  disabled={settingPrimary === addr.id}
+                >
+                  {settingPrimary === addr.id
+                    ? <ActivityIndicator size="small" color={T.pink} />
+                    : <Text style={s.deliverBtnText}>Deliver here</Text>}
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
+          );
+        })}
+      </View>
+
+      {/* Account menu */}
+      <View style={s.card}>
+        <Text style={s.cardTitle}>ACCOUNT</Text>
+        {([
+          { iconName: "receipt-outline", label: "My Orders", onPress: () => router.push("/(tabs)/orders") },
+          { iconName: "heart-outline", label: "My Wishlist", onPress: () => router.push("/(tabs)/wishlist") },
+          { iconName: "chatbubble-outline", label: "Help & Support", onPress: () => {} },
+        ] as Array<{ iconName: ComponentProps<typeof Ionicons>["name"]; label: string; onPress: () => void }>).map((item) => (
+          <TouchableOpacity key={item.label} style={s.menuRow} onPress={item.onPress}>
+            <Ionicons name={item.iconName} size={22} color={T.mid} style={s.menuIcon} />
+            <Text style={s.menuLabel}>{item.label}</Text>
+            <Ionicons name="chevron-forward" size={18} color={T.gray} />
+          </TouchableOpacity>
         ))}
       </View>
 
       <TouchableOpacity style={s.logoutBtn} onPress={logout}>
-        <Text style={s.logoutText}>Log Out</Text>
+        <Text style={s.logoutText}>LOGOUT</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#f8f9ff" },
-  content: { padding: 20, paddingBottom: 48 },
-  center: { flex: 1, backgroundColor: "#f8f9ff", alignItems: "center", justifyContent: "center" },
+  root: { flex: 1, backgroundColor: T.lightBg },
+  content: { paddingBottom: 48 },
+  center: { flex: 1, backgroundColor: T.white, alignItems: "center", justifyContent: "center" },
 
-  heading: { fontSize: 28, fontWeight: "700", color: "#0b1c30", marginBottom: 20 },
+  hero: { backgroundColor: T.dark, paddingTop: 48, paddingBottom: 28, alignItems: "center" },
+  avatar: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: T.pink, alignItems: "center", justifyContent: "center", marginBottom: 12,
+  },
+  avatarText: { color: T.white, fontSize: 22, fontFamily: T.font.bold },
+  heroPhone: { color: T.white, fontSize: 18, fontFamily: T.font.bold },
+  heroSub: { color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 4, letterSpacing: 0.5, fontFamily: T.font.regular },
 
-  profileCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#e5eeff",
-  },
-  avatarCircle: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "#ede9fe",
-    alignItems: "center", justifyContent: "center",
-  },
-  avatarInitial: { fontSize: 16, fontWeight: "700", color: "#5300b7" },
-  phoneLabel: {
-    fontSize: 10, fontWeight: "700", color: "#7b7486",
-    letterSpacing: 1.2, textTransform: "uppercase",
-  },
-  phone: { fontSize: 17, fontWeight: "600", color: "#0b1c30", marginTop: 2 },
-
-  section: { marginBottom: 24 },
-  sectionHeader: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", marginBottom: 14,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#0b1c30" },
-  addBtn: { color: "#6d28d9", fontSize: 14, fontWeight: "700" },
+  card: { backgroundColor: T.white, marginTop: 8, padding: 16 },
+  cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  cardTitle: { fontSize: 12, fontFamily: T.font.bold, color: T.dark, letterSpacing: 0.8 },
+  addLink: { color: T.pink, fontSize: 13, fontFamily: T.font.semi },
 
   form: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#e5eeff",
+    backgroundColor: T.lightBg, borderRadius: T.radiusMd, padding: 14, marginBottom: 12,
+    borderWidth: 1, borderColor: T.border,
   },
-  inputLabel: {
-    fontSize: 10, fontWeight: "700", color: "#5300b7",
-    letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 6,
-  },
+  inputLabel: { fontSize: 10, fontFamily: T.font.bold, color: T.dark, letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" },
   input: {
-    backgroundColor: "#f8f9ff",
-    borderWidth: 1.5,
-    borderColor: "#ccc3d7",
-    color: "#0b1c30",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 14,
+    backgroundColor: T.white, borderWidth: 1, borderColor: T.border,
+    borderRadius: T.radius, padding: 12, marginBottom: 12, fontSize: 14, color: T.dark, fontFamily: T.font.regular,
   },
   mapPickerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#eff4ff",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 14,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: "#d3e4fe",
+    flexDirection: "row", alignItems: "center", backgroundColor: T.white,
+    borderRadius: T.radius, padding: 12, marginBottom: 12, gap: 10,
+    borderWidth: 1, borderColor: T.border,
   },
-  mapPickerIcon: { fontSize: 20 },
-  mapPickerTitle: { color: "#0b1c30", fontWeight: "600", fontSize: 14 },
-  mapPickerAddr: { color: "#4a4455", fontSize: 12, marginTop: 2 },
-  mapPickerHint: { color: "#7b7486", fontSize: 12, marginTop: 2 },
-  checkmark: { color: "#15803d", fontSize: 18, fontWeight: "700" },
-  saveBtn: { backgroundColor: "#6d28d9", borderRadius: 10, padding: 14, alignItems: "center" },
+  mapPickerIcon: { fontSize: 18 },
+  mapPickerTitle: { color: T.dark, fontFamily: T.font.semi, fontSize: 13 },
+  mapPickerAddr: { color: T.mid, fontSize: 12, marginTop: 2, fontFamily: T.font.regular },
+  mapPickerHint: { color: T.gray, fontSize: 12, marginTop: 2, fontFamily: T.font.regular },
+  checkmark: { color: T.green, fontSize: 18, fontWeight: T.bold },
+  saveBtn: { backgroundColor: T.pink, borderRadius: T.radius, padding: 12, alignItems: "center" },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
+  saveBtnText: { color: T.white, fontFamily: T.font.bold, fontSize: 14 },
 
-  addrCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#e5eeff",
+  emptyAddr: { color: T.gray, fontSize: 13, paddingVertical: 8 },
+
+  addrRow: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: T.border },
+  addrRowPrimary: { borderLeftWidth: 3, borderLeftColor: T.pink, paddingLeft: 10 },
+  addrContent: { flex: 1 },
+  addrTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" },
+  addrTypeTag: { backgroundColor: T.lightBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
+  addrTypeText: { fontSize: 10, fontFamily: T.font.bold, color: T.mid },
+  primaryTag: { backgroundColor: T.pinkLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
+  primaryTagText: { fontSize: 10, fontFamily: T.font.bold, color: T.pink },
+  safeDropTag: { backgroundColor: "#E8F7F4", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
+  safeDropText: { color: T.green, fontSize: 10, fontFamily: T.font.bold },
+  addrText: { fontSize: 13, color: T.mid, lineHeight: 18, fontFamily: T.font.regular },
+  deliverBtn: {
+    marginTop: 8, alignSelf: "flex-start",
+    borderWidth: 1, borderColor: T.pink, borderRadius: T.radius, paddingHorizontal: 12, paddingVertical: 6,
   },
-  addrRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  addrLabelRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  addrLabel: { color: "#0b1c30", fontWeight: "700", fontSize: 14 },
-  safeDropBadge: { backgroundColor: "#dcfce7", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
-  safeDropText: { color: "#15803d", fontSize: 10, fontWeight: "700" },
-  addrText: { color: "#7b7486", fontSize: 13, lineHeight: 18 },
-  deliverBtn: { backgroundColor: "#ede9fe", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  deliverBtnText: { color: "#6d28d9", fontSize: 12, fontWeight: "700" },
+  deliverBtnText: { color: T.pink, fontSize: 12, fontFamily: T.font.semi },
 
-  empty: { color: "#7b7486", fontSize: 14 },
-
-  logoutBtn: {
-    borderWidth: 1.5, borderColor: "#ccc3d7",
-    borderRadius: 12, padding: 16, alignItems: "center", marginTop: 4,
+  menuRow: {
+    flexDirection: "row", alignItems: "center", paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: T.border,
   },
-  logoutText: { color: "#7b7486", fontSize: 15, fontWeight: "600" },
+  menuIcon: { marginRight: 14 },
+  menuLabel: { flex: 1, fontSize: 14, color: T.dark, fontFamily: T.font.regular },
 
-  modalContainer: { flex: 1, backgroundColor: "#f8f9ff" },
+  logoutBtn: { margin: 16, borderWidth: 1, borderColor: T.border, padding: 14, alignItems: "center", borderRadius: T.radius },
+  logoutText: { color: T.mid, fontSize: 13, fontFamily: T.font.bold, letterSpacing: 1 },
+
+  modalContainer: { flex: 1, backgroundColor: T.lightBg },
   modalMap: { flex: 1 },
-  modalBottom: {
-    backgroundColor: "#ffffff",
-    padding: 20,
-    paddingBottom: 36,
-    borderTopWidth: 1,
-    borderTopColor: "#e5eeff",
-  },
-  modalAddr: { color: "#0b1c30", fontSize: 14, marginBottom: 12, fontWeight: "500" },
-  modalHint: { color: "#7b7486", fontSize: 14, marginBottom: 12, textAlign: "center" },
-  locateBtn: {
-    backgroundColor: "#6d28d9", borderRadius: 10,
-    padding: 12, alignItems: "center", marginBottom: 12,
-  },
-  locateBtnText: { color: "#ffffff", fontWeight: "700", fontSize: 14 },
+  modalBottom: { backgroundColor: T.white, padding: 20, paddingBottom: 36, borderTopWidth: 1, borderTopColor: T.border },
+  modalAddr: { color: T.dark, fontSize: 14, marginBottom: 12, fontFamily: T.font.semi },
+  modalHint: { color: T.gray, fontSize: 14, marginBottom: 12, textAlign: "center", fontFamily: T.font.regular },
+  locateBtn: { backgroundColor: T.pink, borderRadius: T.radius, padding: 12, alignItems: "center", marginBottom: 12 },
+  locateBtnText: { color: T.white, fontFamily: T.font.bold, fontSize: 14 },
   modalActions: { flexDirection: "row", gap: 10 },
-  modalCancel: {
-    flex: 1, borderWidth: 1.5, borderColor: "#ccc3d7",
-    borderRadius: 10, padding: 14, alignItems: "center",
-  },
-  modalCancelText: { color: "#7b7486", fontWeight: "600" },
-  modalConfirm: { flex: 2, backgroundColor: "#6d28d9", borderRadius: 10, padding: 14, alignItems: "center" },
-  modalConfirmText: { color: "#ffffff", fontWeight: "700" },
+  modalCancel: { flex: 1, borderWidth: 1, borderColor: T.border, borderRadius: T.radius, padding: 14, alignItems: "center" },
+  modalCancelText: { color: T.mid, fontFamily: T.font.semi },
+  modalConfirm: { flex: 2, backgroundColor: T.pink, borderRadius: T.radius, padding: 14, alignItems: "center" },
+  modalConfirmText: { color: T.white, fontFamily: T.font.bold },
 });
