@@ -21,7 +21,8 @@ export async function getPresignedUploadUrl(key: string, contentType: string): P
 
 export function cdnUrl(key: string): string {
   if (CDN) return `${CDN}/${key}`;
-  // Local dev: serve directly from Floci S3 (no CloudFront)
-  const base = endpointUrl ?? "http://localhost:4566";
+  // FLOCI_PUBLIC_URL lets physical devices reach Floci via LAN IP (e.g. http://192.168.x.x:4566)
+  // Falls back to AWS_ENDPOINT_URL (fine for simulators where localhost = host Mac)
+  const base = process.env.FLOCI_PUBLIC_URL ?? endpointUrl ?? "http://localhost:4566";
   return `${base}/${BUCKET}/${key}`;
 }

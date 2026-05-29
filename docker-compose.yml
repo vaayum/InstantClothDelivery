@@ -48,10 +48,18 @@ services:
   floci:
     image: floci/floci:latest
     container_name: threaddash_floci
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - BUCKET_NAME=threaddash-media
     ports:
       - "4566:4566"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - floci_data:/var/lib/floci
+      - ./infrastructure/scripts/init-floci.sh:/docker-entrypoint-initaws.d/init-floci.sh
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4566/_floci/health"]
       interval: 5s
@@ -75,3 +83,4 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+  floci_data:

@@ -11,7 +11,7 @@ api.interceptors.request.use((config) => {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "overview" | "orders" | "agents" | "warehouse";
+type Tab = "overview" | "orders" | "agents" | "warehouse" | "catalog";
 
 type OrderStatus =
   | "PENDING" | "WAREHOUSE_PROCESSING" | "READY_FOR_PICKUP"
@@ -77,6 +77,21 @@ interface AdminAgent {
   currentLat: number | null;
   currentLng: number | null;
   assignments: { orderId: string; status: string }[];
+}
+
+interface CatalogProduct {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  images: string[];
+  isTryable: boolean;
+}
+
+interface CatalogBrand {
+  id: string;
+  name: string;
+  logoUrl: string | null;
 }
 
 interface WarehouseData {
@@ -602,6 +617,224 @@ function WarehouseView() {
   );
 }
 
+// ─── Catalog ──────────────────────────────────────────────────────────────────
+
+function CatalogView() {
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [brands, setBrands] = useState<CatalogBrand[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    Promise.all([
+      api.get<CatalogProduct[]>("/api/catalog"),
+      api.get<CatalogBrand[]>("/api/brands"),
+    ])
+      .then(([pRes, bRes]) => {
+        setProducts(pRes.data);
+        setBrands(bRes.data);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function uploadProductImage(product: CatalogProduct, file: File) {
+    const key = product.id;
+    setUploading((u) => ({ ...u, [key]: true }));
+    setUploadErrors((e) => ({ ...e, [key]: "" }));
+    try {
+      const { data: presign } = await api.post<{ uploadUrl: string; cdnUrl: string }>(
+        "/api/media/presign",
+        { entityType: "product", entityId: product.id, contentType: file.type }
+      );
+      await fetch(presign.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      await api.post(`/api/media/products/${product.id}/images`, { cdnUrl: presign.cdnUrl });
+      setProducts((prev) =>
+        prev.map((p) => p.id === product.id ? { ...p, images: [...p.images, presign.cdnUrl] } : p)
+      );
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Upload failed";
+      setUploadErrors((err) => ({ ...err, [key]: msg }));
+    } finally {
+      setUploading((u) => ({ ...u, [key]: false }));
+    }
+  }
+
+  async function uploadBrandLogo(brand: CatalogBrand, file: File) {
+    const key = `brand-${brand.id}`;
+    setUploading((u) => ({ ...u, [key]: true }));
+    setUploadErrors((e) => ({ ...e, [key]: "" }));
+    try {
+      const { data: presign } = await api.post<{ uploadUrl: string; cdnUrl: string }>(
+        "/api/media/presign",
+        { entityType: "brand", entityId: brand.id, contentType: file.type }
+      );
+      await fetch(presign.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      await api.patch(`/api/media/brands/${brand.id}/logo`, { logoUrl: presign.cdnUrl });
+      setBrands((prev) =>
+        prev.map((b) => b.id === brand.id ? { ...b, logoUrl: presign.cdnUrl } : b)
+      );
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Upload failed";
+      setUploadErrors((err) => ({ ...err, [key]: msg }));
+    } finally {
+      setUploading((u) => ({ ...u, [key]: false }));
+    }
+  }
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <h2 style={s.sectionTitle}>Catalog</h2>
+
+      {/* Products */}
+      <h3 style={s.subTitle}>Products ({products.length})</h3>
+      <div style={{ overflowX: "auto" }}>
+        <table style={s.table}>
+          <thead>
+            <tr>
+              {["Product", "Brand", "Category", "Images", "Upload"].map((h) => (
+                <th key={h} style={s.th}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((product) => {
+              const key = product.id;
+              return (
+                <tr key={key} style={s.tr}>
+                  <td style={s.td}>
+                    <span style={{ color: "#fff", fontWeight: 600 }}>{product.name}</span>
+                    {product.isTryable && (
+                      <span style={{ color: "#a855f7", fontSize: 10, fontWeight: 700, marginLeft: 6, verticalAlign: "middle" }}>TRY</span>
+                    )}
+                  </td>
+                  <td style={{ ...s.td, color: "#888" }}>{product.brand}</td>
+                  <td style={{ ...s.td, color: "#666" }}>{product.category}</td>
+                  <td style={s.td}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      {product.images.slice(0, 4).map((url, i) => (
+                        <img key={i} src={url} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, border: "1px solid #222" }} />
+                      ))}
+                      {product.images.length === 0 && <span style={{ color: "#444", fontSize: 12 }}>No images</span>}
+                    </div>
+                  </td>
+                  <td style={s.td}>
+                    <label>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        style={{ display: "none" }}
+                        disabled={uploading[key]}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadProductImage(product, file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <span style={{
+                        display: "inline-block",
+                        backgroundColor: "#1a1a1a",
+                        color: uploading[key] ? "#555" : "#fff",
+                        border: "1px solid #333",
+                        borderRadius: 6,
+                        padding: "5px 12px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: uploading[key] ? "wait" : "pointer",
+                        userSelect: "none",
+                      }}>
+                        {uploading[key] ? "Uploading…" : "+ Image"}
+                      </span>
+                    </label>
+                    {uploadErrors[key] && (
+                      <p style={{ color: "#ef4444", fontSize: 11, margin: "4px 0 0" }}>{uploadErrors[key]}</p>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Brands */}
+      <h3 style={{ ...s.subTitle, marginTop: 40 }}>Brand Logos ({brands.length})</h3>
+      <div style={{ overflowX: "auto" }}>
+        <table style={s.table}>
+          <thead>
+            <tr>
+              {["Brand", "Current Logo", "Upload"].map((h) => (
+                <th key={h} style={s.th}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {brands.map((brand) => {
+              const key = `brand-${brand.id}`;
+              return (
+                <tr key={brand.id} style={s.tr}>
+                  <td style={s.td}><span style={{ color: "#fff", fontWeight: 600 }}>{brand.name}</span></td>
+                  <td style={s.td}>
+                    {brand.logoUrl ? (
+                      <img src={brand.logoUrl} alt={brand.name} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 22, border: "1px solid #222" }} />
+                    ) : (
+                      <div style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", color: "#555", fontSize: 18, fontWeight: 800, border: "1px solid #222" }}>
+                        {brand.name[0]}
+                      </div>
+                    )}
+                  </td>
+                  <td style={s.td}>
+                    <label>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        style={{ display: "none" }}
+                        disabled={uploading[key]}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadBrandLogo(brand, file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <span style={{
+                        display: "inline-block",
+                        backgroundColor: "#1a1a1a",
+                        color: uploading[key] ? "#555" : "#fff",
+                        border: "1px solid #333",
+                        borderRadius: 6,
+                        padding: "5px 12px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: uploading[key] ? "wait" : "pointer",
+                        userSelect: "none",
+                      }}>
+                        {uploading[key] ? "Uploading…" : (brand.logoUrl ? "Replace Logo" : "+ Logo")}
+                      </span>
+                    </label>
+                    {uploadErrors[key] && (
+                      <p style={{ color: "#ef4444", fontSize: 11, margin: "4px 0 0" }}>{uploadErrors[key]}</p>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
 function Spinner() {
@@ -613,6 +846,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "orders", label: "Orders" },
   { id: "agents", label: "Agents" },
   { id: "warehouse", label: "Warehouse" },
+  { id: "catalog", label: "Catalog" },
 ];
 
 export default function App() {
@@ -665,6 +899,7 @@ export default function App() {
         {tab === "orders" && <OrdersView />}
         {tab === "agents" && <AgentsView />}
         {tab === "warehouse" && <WarehouseView />}
+        {tab === "catalog" && <CatalogView />}
       </div>
     </div>
   );
