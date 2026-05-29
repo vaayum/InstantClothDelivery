@@ -7,6 +7,8 @@ import { useFocusEffect, router } from "expo-router";
 import { api } from "../lib/api";
 import type { Order, OrderStatus } from "../lib/types";
 import { T } from "../lib/theme";
+import type { ComponentProps } from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING: "Placed",
@@ -36,17 +38,39 @@ const STATUS_CONFIG: Partial<Record<OrderStatus, { color: string; bg: string }>>
   RESCHEDULED:         { color: T.mid, bg: T.lightBg },
 };
 
+function StatusIcon({ status }: { status: string }) {
+  type IconName = ComponentProps<typeof Ionicons>["name"];
+  const map: Record<string, { name: IconName; color: string }> = {
+    COMPLETED:            { name: "checkmark-circle",  color: T.green },
+    DELIVERED:            { name: "checkmark-circle",  color: T.green },
+    PARTIALLY_DELIVERED:  { name: "alert-circle",      color: T.orange },
+    RETURNED:             { name: "refresh-circle",    color: T.gray },
+    CANCELLED:            { name: "close-circle",      color: T.red },
+    PENDING:              { name: "time-outline",      color: T.gray },
+    WAREHOUSE_PROCESSING: { name: "cube-outline",      color: T.mid },
+    READY_FOR_PICKUP:     { name: "archive-outline",   color: T.mid },
+    AGENT_ASSIGNED:       { name: "bicycle-outline",   color: T.orange },
+    AGENT_EN_ROUTE:       { name: "bicycle-outline",   color: T.orange },
+    ARRIVED:              { name: "location",          color: T.pink },
+    TRIAL_IN_PROGRESS:    { name: "shirt-outline",     color: T.pink },
+    RESCHEDULED:          { name: "calendar-outline",  color: T.mid },
+  };
+  const cfg = map[status] ?? { name: "ellipse-outline" as IconName, color: T.gray };
+  return <Ionicons name={cfg.name} size={16} color={cfg.color} />;
+}
+
 function StatusPill({ status }: { status: OrderStatus }) {
   const cfg = STATUS_CONFIG[status] ?? { color: T.mid, bg: T.lightBg };
   return (
     <View style={[sp.pill, { backgroundColor: cfg.bg }]}>
+      <StatusIcon status={status} />
       <Text style={[sp.text, { color: cfg.color }]}>{STATUS_LABELS[status]}</Text>
     </View>
   );
 }
 const sp = StyleSheet.create({
-  pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 2 },
-  text: { fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 2, flexDirection: "row", alignItems: "center", gap: 4 },
+  text: { fontSize: 11, letterSpacing: 0.2, fontFamily: T.font.bold },
 });
 
 function OrderCard({ order }: { order: Order }) {
@@ -123,7 +147,7 @@ export default function OrdersScreen() {
       }
       ListEmptyComponent={
         <View style={s.emptyBlock}>
-          <Text style={s.emptyIcon}>📦</Text>
+          <Ionicons name="receipt-outline" size={56} color={T.mid} style={{ marginBottom: 16 }} />
           <Text style={s.emptyTitle}>No orders yet</Text>
           <Text style={s.emptySub}>{error ?? "Browse and place your first order!"}</Text>
           {!error && (
@@ -145,7 +169,7 @@ const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: T.white, justifyContent: "center", alignItems: "center" },
 
   header: { backgroundColor: T.white, padding: 16, borderBottomWidth: 1, borderBottomColor: T.border, marginBottom: 1 },
-  heading: { fontSize: 16, fontWeight: T.bold, color: T.dark, letterSpacing: 1 },
+  heading: { fontSize: 16, fontFamily: T.font.bold, color: T.dark, letterSpacing: 1 },
 
   card: { backgroundColor: T.white, padding: 16 },
   cardTop: { flexDirection: "row", gap: 12, marginBottom: 12 },
@@ -155,19 +179,18 @@ const s = StyleSheet.create({
   },
   imgEmoji: { fontSize: 32 },
   cardInfo: { flex: 1, justifyContent: "center", gap: 4 },
-  itemNames: { fontSize: 14, fontWeight: T.semi, color: T.dark, lineHeight: 20 },
-  orderMeta: { fontSize: 12, color: T.gray },
-  amount: { fontSize: 14, fontWeight: T.bold, color: T.dark },
+  itemNames: { fontSize: 14, fontFamily: T.font.semi, color: T.dark, lineHeight: 20 },
+  orderMeta: { fontSize: 12, color: T.gray, fontFamily: T.font.regular },
+  amount: { fontSize: 14, fontFamily: T.font.bold, color: T.dark },
   cardBottom: { flexDirection: "row", alignItems: "center", gap: 8 },
   tryTag: { backgroundColor: T.pinkLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
-  tryTagText: { color: T.pink, fontSize: 10, fontWeight: T.bold },
-  details: { marginLeft: "auto", color: T.pink, fontSize: 12, fontWeight: T.semi },
+  tryTagText: { color: T.pink, fontSize: 10, fontFamily: T.font.bold },
+  details: { marginLeft: "auto", color: T.pink, fontSize: 12, fontFamily: T.font.semi },
 
   sep: { height: 1, backgroundColor: T.border },
   emptyBlock: { alignItems: "center", paddingTop: 80, paddingHorizontal: 32 },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: T.bold, color: T.dark, marginBottom: 8 },
-  emptySub: { fontSize: 14, color: T.gray, textAlign: "center", marginBottom: 24 },
+  emptyTitle: { fontSize: 18, fontFamily: T.font.bold, color: T.dark, marginBottom: 8 },
+  emptySub: { fontSize: 14, color: T.gray, textAlign: "center", marginBottom: 24, fontFamily: T.font.regular },
   shopBtn: { backgroundColor: T.pink, paddingHorizontal: 32, paddingVertical: 12, borderRadius: T.radius },
-  shopBtnText: { color: T.white, fontWeight: T.bold, letterSpacing: 1 },
+  shopBtnText: { color: T.white, fontFamily: T.font.bold, letterSpacing: 1 },
 });
