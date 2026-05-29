@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert,
+  ScrollView, ActivityIndicator, Alert, TextInput,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { api, clearSession } from "../lib/api";
 import { useCart } from "../context/CartContext";
@@ -17,6 +18,7 @@ export default function CartScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("UPI");
   const [isTryOrder, setIsTryOrder] = useState(false);
   const [placing, setPlacing] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
 
   const allTryable = items.length > 0 && items.every((i) => i.isTryable);
   const deliveryFee = paymentMethod === "COD" ? 2000 : 0;
@@ -113,6 +115,24 @@ export default function CartScreen() {
         <Text style={s.itemCount}>{items.length} item{items.length !== 1 ? "s" : ""}</Text>
       </View>
 
+      {/* Coupon row */}
+      <View style={s.couponRow}>
+        <Ionicons name="pricetag-outline" size={18} color={T.mid} style={s.couponIcon} />
+        <TextInput
+          style={s.couponInput}
+          placeholder="Apply Coupon"
+          placeholderTextColor={T.gray}
+          value={couponCode}
+          onChangeText={setCouponCode}
+          autoCapitalize="characters"
+        />
+        {couponCode.length > 0 && (
+          <TouchableOpacity onPress={() => setCouponCode("")}>
+            <Text style={s.couponApply}>APPLY</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Delivery address */}
       <View style={s.section}>
         <View style={s.sectionHeader}>
@@ -124,7 +144,10 @@ export default function CartScreen() {
         {selectedAddress ? (
           <View style={s.addrCard}>
             <View style={s.addrTag}><Text style={s.addrTagText}>{selectedAddress.label.toUpperCase()}</Text></View>
-            <Text style={s.addrText}>{selectedAddress.formattedAddress}</Text>
+            <View style={s.addrTextRow}>
+              <Ionicons name="location-outline" size={14} color={T.mid} style={s.addrIcon} />
+              <Text style={[s.addrText, s.addrTextFlex]}>{selectedAddress.formattedAddress}</Text>
+            </View>
           </View>
         ) : (
           <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
@@ -239,19 +262,19 @@ const s = StyleSheet.create({
     backgroundColor: T.white, paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: T.border, marginBottom: 8,
   },
-  heading: { fontSize: 16, fontWeight: T.bold, color: T.dark, letterSpacing: 1 },
-  itemCount: { fontSize: 13, color: T.gray },
+  heading: { fontSize: 16, fontWeight: T.bold, color: T.dark, letterSpacing: 1, fontFamily: T.font.bold },
+  itemCount: { fontSize: 13, color: T.gray, fontFamily: T.font.regular },
 
   section: { backgroundColor: T.white, padding: 16, marginBottom: 8 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  sectionTitle: { fontSize: 12, fontWeight: T.bold, color: T.dark, letterSpacing: 0.8 },
-  changeLink: { fontSize: 12, fontWeight: T.bold, color: T.pink },
+  sectionTitle: { fontSize: 12, fontWeight: T.bold, color: T.dark, letterSpacing: 0.8, fontFamily: T.font.bold },
+  changeLink: { fontSize: 12, fontWeight: T.bold, color: T.pink, fontFamily: T.font.bold },
 
   addrCard: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   addrTag: { backgroundColor: T.green, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
-  addrTagText: { color: T.white, fontSize: 10, fontWeight: T.bold },
-  addrText: { flex: 1, fontSize: 13, color: T.mid, lineHeight: 18 },
-  noAddr: { color: T.pink, fontSize: 13 },
+  addrTagText: { color: T.white, fontSize: 10, fontWeight: T.bold, fontFamily: T.font.bold },
+  addrText: { flex: 1, fontSize: 13, color: T.mid, lineHeight: 18, fontFamily: T.font.regular },
+  noAddr: { color: T.pink, fontSize: 13, fontFamily: T.font.regular },
 
   itemCard: {
     backgroundColor: T.white, flexDirection: "row", padding: 16,
@@ -263,10 +286,10 @@ const s = StyleSheet.create({
   },
   itemEmoji: { fontSize: 36 },
   itemInfo: { flex: 1 },
-  itemBrand: { fontSize: 13, fontWeight: T.bold, color: T.dark },
-  itemName: { fontSize: 13, color: T.mid, marginTop: 2 },
-  itemMeta: { fontSize: 12, color: T.gray, marginTop: 2 },
-  itemPrice: { fontSize: 15, fontWeight: T.bold, color: T.dark, marginTop: 6 },
+  itemBrand: { fontSize: 13, fontWeight: T.bold, color: T.dark, fontFamily: T.font.bold },
+  itemName: { fontSize: 13, color: T.mid, marginTop: 2, fontFamily: T.font.regular },
+  itemMeta: { fontSize: 12, color: T.gray, marginTop: 2, fontFamily: T.font.regular },
+  itemPrice: { fontSize: 15, fontWeight: T.bold, color: T.dark, marginTop: 6, fontFamily: T.font.bold },
   itemActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
   qtyRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
@@ -274,15 +297,15 @@ const s = StyleSheet.create({
   },
   qtyBtn: { paddingVertical: 4 },
   qtyBtnText: { fontSize: 18, color: T.dark },
-  qty: { fontSize: 14, fontWeight: T.bold, color: T.dark, minWidth: 20, textAlign: "center" },
-  removeText: { fontSize: 12, fontWeight: T.bold, color: T.gray, letterSpacing: 0.5 },
+  qty: { fontSize: 14, fontWeight: T.bold, color: T.dark, minWidth: 20, textAlign: "center", fontFamily: T.font.bold },
+  removeText: { fontSize: 12, fontWeight: T.bold, color: T.gray, letterSpacing: 0.5, fontFamily: T.font.bold },
 
   tryRow: {
     backgroundColor: T.white, flexDirection: "row", alignItems: "center",
     padding: 16, borderBottomWidth: 1, borderBottomColor: T.border, marginBottom: 8,
   },
-  tryTitle: { fontSize: 13, fontWeight: T.bold, color: T.dark },
-  trySub: { fontSize: 12, color: T.gray, marginTop: 2 },
+  tryTitle: { fontSize: 13, fontWeight: T.bold, color: T.dark, fontFamily: T.font.bold },
+  trySub: { fontSize: 12, color: T.gray, marginTop: 2, fontFamily: T.font.regular },
   toggle: { width: 44, height: 26, borderRadius: 13, backgroundColor: T.border, padding: 3 },
   toggleOn: { backgroundColor: T.pink },
   thumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: T.white },
@@ -291,29 +314,48 @@ const s = StyleSheet.create({
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   chip: { borderWidth: 1, borderColor: T.border, borderRadius: T.radius, paddingHorizontal: 14, paddingVertical: 7 },
   chipSelected: { backgroundColor: T.dark, borderColor: T.dark },
-  chipText: { color: T.mid, fontSize: 13 },
-  chipTextSelected: { color: T.white, fontWeight: T.bold },
+  chipText: { color: T.mid, fontSize: 13, fontFamily: T.font.regular },
+  chipTextSelected: { color: T.white, fontWeight: T.bold, fontFamily: T.font.bold },
 
   summaryBox: { backgroundColor: T.white, padding: 16, marginTop: 8, marginBottom: 8 },
-  summaryTitle: { fontSize: 12, fontWeight: T.bold, color: T.dark, letterSpacing: 0.8, marginBottom: 14 },
+  summaryTitle: { fontSize: 12, fontWeight: T.bold, color: T.dark, letterSpacing: 0.8, marginBottom: 14, fontFamily: T.font.bold },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  summaryLabel: { fontSize: 13, color: T.mid },
-  summaryValue: { fontSize: 13, color: T.dark },
+  summaryLabel: { fontSize: 13, color: T.mid, fontFamily: T.font.regular },
+  summaryValue: { fontSize: 13, color: T.dark, fontFamily: T.font.regular },
   totalRow: {
     flexDirection: "row", justifyContent: "space-between",
     borderTopWidth: 1, borderTopColor: T.border, paddingTop: 12, marginTop: 4,
   },
-  totalLabel: { fontSize: 14, fontWeight: T.bold, color: T.dark },
-  totalValue: { fontSize: 14, fontWeight: T.bold, color: T.dark },
+  totalLabel: { fontSize: 14, fontWeight: T.bold, color: T.dark, fontFamily: T.font.bold },
+  totalValue: { fontSize: 14, fontWeight: T.bold, color: T.dark, fontFamily: T.font.bold },
 
   placeBtn: { backgroundColor: T.pink, margin: 16, paddingVertical: 16, alignItems: "center", borderRadius: T.radius },
   placeBtnDisabled: { opacity: 0.5 },
-  placeBtnText: { color: T.white, fontWeight: T.bold, fontSize: 14, letterSpacing: 1 },
+  placeBtnText: { color: T.white, fontWeight: T.bold, fontSize: 14, letterSpacing: 1, fontFamily: T.font.semi },
 
   empty: { flex: 1, backgroundColor: T.white, alignItems: "center", justifyContent: "center", padding: 32 },
   emptyIcon: { fontSize: 64, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: T.bold, color: T.dark, marginBottom: 8, letterSpacing: 1 },
-  emptySub: { color: T.gray, fontSize: 14, marginBottom: 28 },
+  emptyTitle: { fontSize: 18, fontWeight: T.bold, color: T.dark, marginBottom: 8, letterSpacing: 1, fontFamily: T.font.bold },
+  emptySub: { color: T.gray, fontSize: 14, marginBottom: 28, fontFamily: T.font.regular },
   browseBtn: { backgroundColor: T.pink, borderRadius: T.radius, paddingHorizontal: 32, paddingVertical: 14 },
-  browseBtnText: { color: T.white, fontWeight: T.bold, fontSize: 14, letterSpacing: 1 },
+  browseBtnText: { color: T.white, fontWeight: T.bold, fontSize: 14, letterSpacing: 1, fontFamily: T.font.bold },
+
+  couponRow: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: T.white,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: T.border,
+    paddingHorizontal: 16, paddingVertical: 12,
+    marginBottom: 8,
+  },
+  couponIcon: { marginRight: 10 },
+  couponInput: {
+    flex: 1, fontSize: 14, color: T.dark,
+    fontFamily: T.font.regular,
+  },
+  couponApply: {
+    color: T.pink, fontFamily: T.font.semi, fontSize: 13,
+  },
+  addrTextRow: { flexDirection: "row", alignItems: "flex-start" },
+  addrIcon: { marginTop: 2, marginRight: 6 },
+  addrTextFlex: { flex: 1 },
 });
