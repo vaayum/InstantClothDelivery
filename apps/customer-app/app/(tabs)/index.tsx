@@ -182,20 +182,10 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadAll(true)} tintColor={T.pink} />}
         ListHeaderComponent={
           <View>
-            {pinnedWarehouseId === null && (
-              <TouchableOpacity style={s.locationBanner} onPress={useCurrentLocation} disabled={locating}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Ionicons name="location-outline" size={14} color={T.pinkDark} />
-                  <Text style={s.locationBannerText}>
-                    {locating ? "Getting location…" : "Set location to check delivery"}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
             <View style={s.appBar}>
               <Text style={s.appBarBrand}>myntra</Text>
               <View style={s.appBarRight}>
-                <Ionicons name="notifications-outline" size={22} color={T.dark} style={{ marginRight: 14 }} />
+                <Ionicons name="notifications-outline" size={22} color={T.dark} style={s.notifIcon} />
                 <Ionicons name="person-outline" size={22} color={T.dark} />
               </View>
             </View>
@@ -209,6 +199,16 @@ export default function HomeScreen() {
                 onChangeText={setQuery}
               />
             </View>
+            {pinnedWarehouseId === null && (
+              <TouchableOpacity style={s.locationBanner} onPress={useCurrentLocation} disabled={locating}>
+                <View style={s.locationBannerRow}>
+                  <Ionicons name="location-outline" size={14} color={T.pinkDark} />
+                  <Text style={s.locationBannerText}>
+                    {locating ? "Getting location…" : "Set location to check delivery"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
             <View style={s.resultRow}>
               <Text style={s.resultCount}>{filtered.length} items</Text>
             </View>
@@ -277,7 +277,7 @@ export default function HomeScreen() {
       {/* Bottom filter toolbar */}
       <View style={s.toolbar}>
         <TouchableOpacity style={[s.toolBtn, hasSortFilter && s.toolBtnActive]} onPress={() => setOpenSheet("sort")}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <View style={s.sortBtnInner}>
             <Ionicons name="swap-vertical" size={13} color={sort !== "relevance" ? T.pink : T.dark} />
             <Text style={[s.toolBtnText, sort !== "relevance" && s.toolBtnTextActive]}>Sort</Text>
           </View>
@@ -356,6 +356,9 @@ const s = StyleSheet.create({
   locationBannerText: {
     color: T.pinkDark, fontFamily: T.font.semi, fontSize: 13,
   },
+  locationBannerRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  sortBtnInner: { flexDirection: "row", alignItems: "center", gap: 4 },
+  notifIcon: { marginRight: 14 },
 
   appBar: {
     backgroundColor: T.white,
@@ -397,8 +400,8 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: T.border, marginBottom: 1,
   },
   resultCount: {
-    fontSize: 12, color: T.gray, paddingHorizontal: 12, paddingVertical: 8,
-    backgroundColor: T.white, borderBottomWidth: 1, borderBottomColor: T.border,
+    fontSize: 12,
+    color: T.gray,
     fontFamily: T.font.regular,
   },
 
@@ -412,13 +415,13 @@ const s = StyleSheet.create({
     position: "absolute", top: 8, left: 8,
     backgroundColor: T.green, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 2,
   },
-  tryText: { color: T.white, fontSize: 9, fontWeight: T.bold, letterSpacing: 0.5 },
+  tryText: { color: T.white, fontSize: 9, fontFamily: T.font.bold, letterSpacing: 0.5 },
   unavailableOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center", justifyContent: "center",
   },
-  unavailableText: { color: T.white, fontSize: 12, fontWeight: T.bold, textAlign: "center" },
+  unavailableText: { color: T.white, fontSize: 12, fontFamily: T.font.bold, textAlign: "center" },
   heartBtn: {
     position: "absolute", top: 8, right: 8,
     backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 20,
@@ -429,6 +432,7 @@ const s = StyleSheet.create({
   cardBrand: {
     fontSize: 11, color: T.dark, textTransform: "uppercase", letterSpacing: 0.5,
     fontFamily: T.font.bold,
+    marginBottom: 2,
   },
   cardName: {
     fontSize: 13, color: T.mid, lineHeight: 18, marginBottom: 4,
@@ -441,12 +445,12 @@ const s = StyleSheet.create({
     fontFamily: T.font.bold,
   },
   mrp: {
-    fontSize: 12, color: T.gray, textDecorationLine: "line-through", marginLeft: 4,
+    fontSize: 12, color: T.gray, textDecorationLine: "line-through",
     fontFamily: T.font.regular,
   },
   off: {
-    fontSize: 12, color: T.green, marginLeft: 4,
-    fontFamily: T.font.regular,
+    fontSize: 12, color: T.green,
+    fontFamily: T.font.semi,
   },
 
   empty: { color: T.gray, textAlign: "center", marginTop: 48, fontSize: 15, paddingHorizontal: 16 },
