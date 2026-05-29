@@ -279,13 +279,14 @@ model BinLocation {
   aisle        String      // "01", "02"
   rack         String      // "01", "02"
   shelf        String      // "1", "2", "3"
-  locationCode String      @unique // generated as "A-01-02-3"
+  locationCode String      // generated as "A-01-02-3"
   capacity     Int         @default(100)
   isActive     Boolean     @default(true)
   inventory    Inventory[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
+  @@unique([warehouseId, locationCode])
   @@map("bin_locations")
 }
 
