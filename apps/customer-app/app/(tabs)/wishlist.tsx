@@ -3,9 +3,11 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, router } from "expo-router";
 import { api, clearSession } from "../lib/api";
 import { useWishlist } from "../context/WishlistContext";
+import { T } from "../lib/theme";
 import type { Product } from "../lib/types";
 
 function isProductAvailable(product: Product): boolean {
@@ -45,13 +47,13 @@ export default function WishlistScreen() {
   }, [load, refreshWishlist]));
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#6d28d9" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={T.pink} /></View>;
   }
 
   if (products.length === 0) {
     return (
       <View style={s.center}>
-        <Text style={s.emptyIcon}>🤍</Text>
+        <Ionicons name="heart-outline" size={56} color={T.pink} style={{ marginBottom: 12 }} />
         <Text style={s.emptyTitle}>No saved items</Text>
         <Text style={s.emptySub}>Tap the heart on any product to save it here</Text>
         <TouchableOpacity style={s.browseBtn} onPress={() => router.push("/(tabs)")}>
@@ -99,7 +101,7 @@ export default function WishlistScreen() {
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={s.removeBtn} onPress={() => removeFromWishlist(item.id)}>
-                <Text style={s.removeText}>✕</Text>
+                <Ionicons name="close" size={18} color={T.gray} />
               </TouchableOpacity>
             </View>
           );
@@ -110,30 +112,28 @@ export default function WishlistScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#f8f9ff" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f8f9ff", padding: 32 },
+  root: { flex: 1, backgroundColor: T.lightBg },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: T.lightBg, padding: 32 },
   list: { padding: 16, paddingBottom: 48 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 20, fontWeight: "700", color: "#0b1c30", marginBottom: 6 },
-  emptySub: { color: "#7b7486", textAlign: "center", marginBottom: 24 },
-  browseBtn: { backgroundColor: "#6d28d9", borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 },
-  browseBtnText: { color: "#fff", fontWeight: "700" },
-  noLocBanner: { backgroundColor: "#ede9fe", borderRadius: 12, padding: 12, marginBottom: 12 },
-  noLocText: { color: "#5300b7", fontSize: 13, textAlign: "center" },
+  emptyTitle: { fontSize: 20, fontFamily: T.font.bold, color: T.dark, marginBottom: 6 },
+  emptySub: { color: T.mid, textAlign: "center", marginBottom: 24, fontFamily: T.font.regular },
+  browseBtn: { backgroundColor: T.pink, borderRadius: T.radius, paddingHorizontal: 28, paddingVertical: 12 },
+  browseBtnText: { color: T.white, fontFamily: T.font.semi },
+  noLocBanner: { backgroundColor: T.pinkLight, borderRadius: T.radiusMd, padding: 12, marginBottom: 12 },
+  noLocText: { color: T.pinkDark, fontSize: 13, textAlign: "center", fontFamily: T.font.regular },
   row: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   card: {
-    flex: 1, backgroundColor: "#fff", borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: "#e5eeff",
+    flex: 1, backgroundColor: T.white, borderRadius: T.radiusMd, padding: 14,
+    borderWidth: 1, borderColor: T.border,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   cardUnavailable: { opacity: 0.65 },
   info: { flex: 1, marginRight: 8 },
-  brand: { color: "#7b7486", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.8 },
-  name: { color: "#0b1c30", fontWeight: "600", fontSize: 14, marginTop: 2 },
-  price: { color: "#6d28d9", fontWeight: "700", marginTop: 4 },
-  unavailable: { color: "#7b7486", fontSize: 12, marginTop: 4, fontStyle: "italic" },
-  availBadge: { backgroundColor: "#dcfce7", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  availText: { color: "#15803d", fontSize: 11, fontWeight: "700" },
+  brand: { color: T.gray, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.8, fontFamily: T.font.bold },
+  name: { color: T.dark, fontFamily: T.font.semi, fontSize: 14, marginTop: 2 },
+  price: { color: T.dark, fontFamily: T.font.bold, marginTop: 4 },
+  unavailable: { color: T.gray, fontSize: 12, marginTop: 4, fontStyle: "italic", fontFamily: T.font.regular },
+  availBadge: { backgroundColor: T.greenLight, borderRadius: T.radiusMd, paddingHorizontal: 8, paddingVertical: 4 },
+  availText: { color: T.green, fontSize: 11, fontFamily: T.font.bold },
   removeBtn: { marginLeft: 8, padding: 8 },
-  removeText: { color: "#aaa", fontSize: 16 },
 });
