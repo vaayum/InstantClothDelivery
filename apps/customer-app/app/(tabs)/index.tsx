@@ -6,6 +6,7 @@ import {
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import * as Location from "expo-location";
+import { Ionicons } from "@expo/vector-icons";
 import { api, clearSession } from "../lib/api";
 import type { Product, MeResponse } from "../lib/types";
 import { useWishlist } from "../context/WishlistContext";
@@ -183,22 +184,30 @@ export default function HomeScreen() {
           <View>
             {pinnedWarehouseId === null && (
               <TouchableOpacity style={s.locationBanner} onPress={useCurrentLocation} disabled={locating}>
-                <Text style={s.locationBannerText}>
-                  {locating ? "Getting location…" : "📍 Set location to check delivery"}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Ionicons name="location-outline" size={14} color={T.pinkDark} />
+                  <Text style={s.locationBannerText}>
+                    {locating ? "Getting location…" : "Set location to check delivery"}
+                  </Text>
+                </View>
               </TouchableOpacity>
             )}
-            <View style={s.topBar}>
-              <View style={s.searchWrap}>
-                <Text style={s.searchIcon}>🔍</Text>
-                <TextInput
-                  style={s.searchInput}
-                  placeholder="Search for brands, clothes..."
-                  placeholderTextColor={T.gray}
-                  value={query}
-                  onChangeText={setQuery}
-                />
+            <View style={s.appBar}>
+              <Text style={s.appBarBrand}>myntra</Text>
+              <View style={s.appBarRight}>
+                <Ionicons name="notifications-outline" size={22} color={T.dark} style={{ marginRight: 14 }} />
+                <Ionicons name="person-outline" size={22} color={T.dark} />
               </View>
+            </View>
+            <View style={s.searchBar}>
+              <Ionicons name="search" size={16} color={T.gray} style={{ marginRight: 8 }} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Search for brands, clothes..."
+                placeholderTextColor={T.gray}
+                value={query}
+                onChangeText={setQuery}
+              />
             </View>
             <View style={s.resultRow}>
               <Text style={s.resultCount}>{filtered.length} items</Text>
@@ -240,7 +249,11 @@ export default function HomeScreen() {
                   onPress={() => wishlisted ? removeFromWishlist(item.id) : addToWishlist(item.id)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={s.heartIcon}>{wishlisted ? "❤️" : "🤍"}</Text>
+                  <Ionicons
+                    name={wishlisted ? "heart" : "heart-outline"}
+                    size={20}
+                    color={wishlisted ? T.pink : T.mid}
+                  />
                 </TouchableOpacity>
               </View>
               <View style={s.cardBody}>
@@ -264,7 +277,10 @@ export default function HomeScreen() {
       {/* Bottom filter toolbar */}
       <View style={s.toolbar}>
         <TouchableOpacity style={[s.toolBtn, hasSortFilter && s.toolBtnActive]} onPress={() => setOpenSheet("sort")}>
-          <Text style={[s.toolBtnText, hasSortFilter && s.toolBtnTextActive]}>↕ Sort</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Ionicons name="swap-vertical" size={13} color={sort !== "relevance" ? T.pink : T.dark} />
+            <Text style={[s.toolBtnText, sort !== "relevance" && s.toolBtnTextActive]}>Sort</Text>
+          </View>
         </TouchableOpacity>
         <View style={s.toolDivider} />
         <TouchableOpacity style={[s.toolBtn, hasGenderFilter && s.toolBtnActive]} onPress={() => setOpenSheet("gender")}>
@@ -337,24 +353,54 @@ const s = StyleSheet.create({
   locationBanner: {
     backgroundColor: T.pinkLight, paddingVertical: 10, alignItems: "center",
   },
-  locationBannerText: { color: T.pink, fontWeight: T.semi, fontSize: 13 },
+  locationBannerText: {
+    color: T.pinkDark, fontFamily: T.font.semi, fontSize: 13,
+  },
 
-  topBar: {
-    backgroundColor: T.white, paddingHorizontal: 12, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: T.border,
+  appBar: {
+    backgroundColor: T.white,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
   },
-  searchWrap: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: T.lightBg, borderRadius: T.radius, paddingHorizontal: 10, paddingVertical: 8,
+  appBarBrand: {
+    fontSize: 26,
+    fontFamily: T.font.bold,
+    color: T.pink,
+    letterSpacing: -0.5,
   },
-  searchIcon: { fontSize: 14, marginRight: 6 },
-  searchInput: { flex: 1, fontSize: 14, color: T.dark },
+  appBarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: T.lightBg,
+    marginHorizontal: 12,
+    marginVertical: 8,
+    borderRadius: T.radius,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  searchInput: {
+    flex: 1, fontSize: 14, color: T.dark,
+    fontFamily: T.font.regular,
+  },
 
   resultRow: {
     backgroundColor: T.white, paddingHorizontal: 12, paddingVertical: 8,
     borderBottomWidth: 1, borderBottomColor: T.border, marginBottom: 1,
   },
-  resultCount: { fontSize: 12, color: T.gray },
+  resultCount: {
+    fontSize: 12, color: T.gray, paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: T.white, borderBottomWidth: 1, borderBottomColor: T.border,
+    fontFamily: T.font.regular,
+  },
 
   grid: { paddingHorizontal: 0, paddingBottom: 100 },
   row: { gap: 1, marginBottom: 1 },
@@ -378,16 +424,30 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 20,
     width: 32, height: 32, alignItems: "center", justifyContent: "center",
   },
-  heartIcon: { fontSize: 16 },
 
   cardBody: { padding: 8, paddingBottom: 12 },
-  cardBrand: { fontSize: 11, color: T.dark, fontWeight: T.bold, marginBottom: 2 },
-  cardName: { fontSize: 13, color: T.mid, lineHeight: 18, marginBottom: 4 },
+  cardBrand: {
+    fontSize: 11, color: T.dark, textTransform: "uppercase", letterSpacing: 0.5,
+    fontFamily: T.font.bold,
+  },
+  cardName: {
+    fontSize: 13, color: T.mid, lineHeight: 18, marginBottom: 4,
+    fontFamily: T.font.regular,
+  },
   textMuted: { color: T.gray },
   priceRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
-  price: { fontSize: 14, fontWeight: T.bold, color: T.dark },
-  mrp: { fontSize: 12, color: T.gray, textDecorationLine: "line-through" },
-  off: { fontSize: 12, color: T.green, fontWeight: T.semi },
+  price: {
+    fontSize: 14, color: T.dark,
+    fontFamily: T.font.bold,
+  },
+  mrp: {
+    fontSize: 12, color: T.gray, textDecorationLine: "line-through", marginLeft: 4,
+    fontFamily: T.font.regular,
+  },
+  off: {
+    fontSize: 12, color: T.green, marginLeft: 4,
+    fontFamily: T.font.regular,
+  },
 
   empty: { color: T.gray, textAlign: "center", marginTop: 48, fontSize: 15, paddingHorizontal: 16 },
 
@@ -399,7 +459,10 @@ const s = StyleSheet.create({
   },
   toolBtn: { flex: 1, justifyContent: "center", alignItems: "center" },
   toolBtnActive: { borderBottomWidth: 2, borderBottomColor: T.pink },
-  toolBtnText: { fontSize: 12, color: T.mid, fontWeight: T.semi },
+  toolBtnText: {
+    fontSize: 13, color: T.dark,
+    fontFamily: T.font.semi,
+  },
   toolBtnTextActive: { color: T.pink },
   toolDivider: { width: 1, backgroundColor: T.border, marginVertical: 10 },
 
@@ -409,12 +472,21 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 10, paddingBottom: 48, maxHeight: "60%",
   },
   sheetHandle: { width: 32, height: 3, backgroundColor: T.border, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
-  sheetTitle: { fontSize: 12, fontWeight: T.bold, color: T.dark, marginBottom: 8, letterSpacing: 0.8 },
+  sheetTitle: {
+    fontSize: 13, color: T.dark, letterSpacing: 1, marginBottom: 8,
+    fontFamily: T.font.bold,
+  },
   sheetRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: T.border,
   },
-  sheetRowText: { fontSize: 14, color: T.mid },
-  sheetRowActive: { color: T.pink, fontWeight: T.bold },
+  sheetRowText: {
+    fontSize: 15, color: T.dark,
+    fontFamily: T.font.regular,
+  },
+  sheetRowActive: {
+    color: T.pink,
+    fontFamily: T.font.bold,
+  },
   sheetDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: T.pink },
 });
