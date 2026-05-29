@@ -196,7 +196,7 @@ export default function ProductScreen() {
         onPress={handleAddToCart}
         disabled={!selectedSku || selectedSkuUnavailable}
       >
-        <Text style={[s.addBtnText, added && { color: T.white }]}>
+        <Text style={s.addBtnText}>
           {added ? "ADDED TO BAG ✓" : "ADD TO BAG"}
         </Text>
       </TouchableOpacity>
@@ -204,7 +204,7 @@ export default function ProductScreen() {
       {selectedSkuUnavailable && selectedSku?.alternativeWarehouseId && (
         <TouchableOpacity style={s.switchBtn} onPress={handleSwitchStore} disabled={switching}>
           {switching
-            ? <ActivityIndicator color="#fff" size="small" />
+            ? <ActivityIndicator color={T.white} size="small" />
             : <Text style={s.switchBtnText}>Switch store</Text>}
         </TouchableOpacity>
       )}
