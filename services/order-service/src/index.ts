@@ -6,6 +6,7 @@ import internalRouter from "./routes/internal";
 import catalogRouter from "./routes/catalog";
 import adminRouter from "./routes/admin";
 import wishlistRouter from "./routes/wishlist";
+import bannersRouter from "./routes/banners";
 import { startSlaMonitor } from "./sla-monitor";
 import { startTrialTimeoutMonitor, startTrialTimerBroadcast } from "./trial-timeout";
 
@@ -24,6 +25,7 @@ app.use("/api/orders", ordersRouter);
 app.use("/api/orders", trialRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/wishlist", wishlistRouter);
+app.use("/api/banners", bannersRouter);
 app.use("/internal", internalRouter);
 
 if (require.main === module) {
