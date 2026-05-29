@@ -11,6 +11,8 @@ import { useCart } from "../context/CartContext";
 import { api, clearSession } from "../lib/api";
 import type { Address, MeResponse } from "../lib/types";
 import { T } from "../lib/theme";
+import type { ComponentProps } from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ProfileScreen() {
   const [phone, setPhone] = useState<string | null>(null);
@@ -296,15 +298,15 @@ export default function ProfileScreen() {
       {/* Account menu */}
       <View style={s.card}>
         <Text style={s.cardTitle}>ACCOUNT</Text>
-        {[
-          { icon: "📦", label: "My Orders", onPress: () => router.push("/(tabs)/orders") },
-          { icon: "♡", label: "My Wishlist", onPress: () => router.push("/(tabs)/wishlist") },
-          { icon: "💬", label: "Help & Support", onPress: () => {} },
-        ].map((item) => (
+        {([
+          { iconName: "receipt-outline", label: "My Orders", onPress: () => router.push("/(tabs)/orders") },
+          { iconName: "heart-outline", label: "My Wishlist", onPress: () => router.push("/(tabs)/wishlist") },
+          { iconName: "chatbubble-outline", label: "Help & Support", onPress: () => {} },
+        ] as Array<{ iconName: ComponentProps<typeof Ionicons>["name"]; label: string; onPress: () => void }>).map((item) => (
           <TouchableOpacity key={item.label} style={s.menuRow} onPress={item.onPress}>
-            <Text style={s.menuIcon}>{item.icon}</Text>
+            <Ionicons name={item.iconName} size={22} color={T.mid} style={s.menuIcon} />
             <Text style={s.menuLabel}>{item.label}</Text>
-            <Text style={s.menuArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={18} color={T.gray} />
           </TouchableOpacity>
         ))}
       </View>
@@ -326,23 +328,23 @@ const s = StyleSheet.create({
     width: 64, height: 64, borderRadius: 32,
     backgroundColor: T.pink, alignItems: "center", justifyContent: "center", marginBottom: 12,
   },
-  avatarText: { color: T.white, fontSize: 22, fontWeight: T.bold },
-  heroPhone: { color: T.white, fontSize: 18, fontWeight: T.bold },
-  heroSub: { color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 4, letterSpacing: 0.5 },
+  avatarText: { color: T.white, fontSize: 22, fontFamily: T.font.bold },
+  heroPhone: { color: T.white, fontSize: 18, fontFamily: T.font.bold },
+  heroSub: { color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 4, letterSpacing: 0.5, fontFamily: T.font.regular },
 
   card: { backgroundColor: T.white, marginTop: 8, padding: 16 },
   cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  cardTitle: { fontSize: 12, fontWeight: T.bold, color: T.dark, letterSpacing: 0.8 },
-  addLink: { color: T.pink, fontSize: 13, fontWeight: T.semi },
+  cardTitle: { fontSize: 12, fontFamily: T.font.bold, color: T.dark, letterSpacing: 0.8 },
+  addLink: { color: T.pink, fontSize: 13, fontFamily: T.font.semi },
 
   form: {
     backgroundColor: T.lightBg, borderRadius: T.radiusMd, padding: 14, marginBottom: 12,
     borderWidth: 1, borderColor: T.border,
   },
-  inputLabel: { fontSize: 10, fontWeight: T.bold, color: T.dark, letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" },
+  inputLabel: { fontSize: 10, fontFamily: T.font.bold, color: T.dark, letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" },
   input: {
     backgroundColor: T.white, borderWidth: 1, borderColor: T.border,
-    borderRadius: T.radius, padding: 12, marginBottom: 12, fontSize: 14, color: T.dark,
+    borderRadius: T.radius, padding: 12, marginBottom: 12, fontSize: 14, color: T.dark, fontFamily: T.font.regular,
   },
   mapPickerBtn: {
     flexDirection: "row", alignItems: "center", backgroundColor: T.white,
@@ -350,13 +352,13 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: T.border,
   },
   mapPickerIcon: { fontSize: 18 },
-  mapPickerTitle: { color: T.dark, fontWeight: T.semi, fontSize: 13 },
-  mapPickerAddr: { color: T.mid, fontSize: 12, marginTop: 2 },
-  mapPickerHint: { color: T.gray, fontSize: 12, marginTop: 2 },
+  mapPickerTitle: { color: T.dark, fontFamily: T.font.semi, fontSize: 13 },
+  mapPickerAddr: { color: T.mid, fontSize: 12, marginTop: 2, fontFamily: T.font.regular },
+  mapPickerHint: { color: T.gray, fontSize: 12, marginTop: 2, fontFamily: T.font.regular },
   checkmark: { color: T.green, fontSize: 18, fontWeight: T.bold },
   saveBtn: { backgroundColor: T.pink, borderRadius: T.radius, padding: 12, alignItems: "center" },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: T.white, fontWeight: T.bold, fontSize: 14 },
+  saveBtnText: { color: T.white, fontFamily: T.font.bold, fontSize: 14 },
 
   emptyAddr: { color: T.gray, fontSize: 13, paddingVertical: 8 },
 
@@ -365,39 +367,38 @@ const s = StyleSheet.create({
   addrContent: { flex: 1 },
   addrTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" },
   addrTypeTag: { backgroundColor: T.lightBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
-  addrTypeText: { fontSize: 10, fontWeight: T.bold, color: T.mid },
+  addrTypeText: { fontSize: 10, fontFamily: T.font.bold, color: T.mid },
   primaryTag: { backgroundColor: T.pinkLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
-  primaryTagText: { fontSize: 10, fontWeight: T.bold, color: T.pink },
+  primaryTagText: { fontSize: 10, fontFamily: T.font.bold, color: T.pink },
   safeDropTag: { backgroundColor: "#E8F7F4", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 2 },
-  safeDropText: { color: T.green, fontSize: 10, fontWeight: T.bold },
-  addrText: { fontSize: 13, color: T.mid, lineHeight: 18 },
+  safeDropText: { color: T.green, fontSize: 10, fontFamily: T.font.bold },
+  addrText: { fontSize: 13, color: T.mid, lineHeight: 18, fontFamily: T.font.regular },
   deliverBtn: {
     marginTop: 8, alignSelf: "flex-start",
     borderWidth: 1, borderColor: T.pink, borderRadius: T.radius, paddingHorizontal: 12, paddingVertical: 6,
   },
-  deliverBtnText: { color: T.pink, fontSize: 12, fontWeight: T.semi },
+  deliverBtnText: { color: T.pink, fontSize: 12, fontFamily: T.font.semi },
 
   menuRow: {
     flexDirection: "row", alignItems: "center", paddingVertical: 16,
     borderBottomWidth: 1, borderBottomColor: T.border,
   },
-  menuIcon: { fontSize: 18, marginRight: 14 },
-  menuLabel: { flex: 1, fontSize: 14, color: T.dark },
-  menuArrow: { fontSize: 22, color: T.gray },
+  menuIcon: { marginRight: 14 },
+  menuLabel: { flex: 1, fontSize: 14, color: T.dark, fontFamily: T.font.regular },
 
   logoutBtn: { margin: 16, borderWidth: 1, borderColor: T.border, padding: 14, alignItems: "center", borderRadius: T.radius },
-  logoutText: { color: T.mid, fontSize: 13, fontWeight: T.bold, letterSpacing: 1 },
+  logoutText: { color: T.mid, fontSize: 13, fontFamily: T.font.bold, letterSpacing: 1 },
 
   modalContainer: { flex: 1, backgroundColor: T.lightBg },
   modalMap: { flex: 1 },
   modalBottom: { backgroundColor: T.white, padding: 20, paddingBottom: 36, borderTopWidth: 1, borderTopColor: T.border },
-  modalAddr: { color: T.dark, fontSize: 14, marginBottom: 12, fontWeight: T.semi },
-  modalHint: { color: T.gray, fontSize: 14, marginBottom: 12, textAlign: "center" },
+  modalAddr: { color: T.dark, fontSize: 14, marginBottom: 12, fontFamily: T.font.semi },
+  modalHint: { color: T.gray, fontSize: 14, marginBottom: 12, textAlign: "center", fontFamily: T.font.regular },
   locateBtn: { backgroundColor: T.pink, borderRadius: T.radius, padding: 12, alignItems: "center", marginBottom: 12 },
-  locateBtnText: { color: T.white, fontWeight: T.bold, fontSize: 14 },
+  locateBtnText: { color: T.white, fontFamily: T.font.bold, fontSize: 14 },
   modalActions: { flexDirection: "row", gap: 10 },
   modalCancel: { flex: 1, borderWidth: 1, borderColor: T.border, borderRadius: T.radius, padding: 14, alignItems: "center" },
-  modalCancelText: { color: T.mid, fontWeight: T.semi },
+  modalCancelText: { color: T.mid, fontFamily: T.font.semi },
   modalConfirm: { flex: 2, backgroundColor: T.pink, borderRadius: T.radius, padding: 14, alignItems: "center" },
-  modalConfirmText: { color: T.white, fontWeight: T.bold },
+  modalConfirmText: { color: T.white, fontFamily: T.font.bold },
 });
