@@ -4,9 +4,33 @@ import {
   ActivityIndicator, ScrollView, Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { api, clearSession } from "../lib/api";
 import { useCart } from "../context/CartContext";
+import { T } from "../lib/theme";
 import type { Product, Sku } from "../lib/types";
+
+function RatingRow({ rating = 4.2, count = 312 }: { rating?: number; count?: number }) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5;
+  return (
+    <View style={r.row}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Ionicons
+          key={i}
+          name={i <= full ? "star" : half && i === full + 1 ? "star-half" : "star-outline"}
+          size={14}
+          color="#F5C518"
+        />
+      ))}
+      <Text style={r.text}>{rating} ({count} ratings)</Text>
+    </View>
+  );
+}
+const r = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", marginHorizontal: 20, marginVertical: 8 },
+  text: { marginLeft: 6, fontSize: 13, color: T.mid, fontFamily: T.font.regular },
+});
 
 export default function ProductScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -89,7 +113,7 @@ export default function ProductScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#fff" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={T.pink} /></View>;
   }
   if (!product) {
     return <View style={s.center}><Text style={s.errorText}>Product not found.</Text></View>;
@@ -99,10 +123,13 @@ export default function ProductScreen() {
 
   return (
     <ScrollView style={s.scroll} contentContainerStyle={s.content}>
-      <View style={s.hero}><Text style={s.heroEmoji}>👕</Text></View>
+      <View style={s.imageBox}>
+        <Text style={s.heroEmoji}>👕</Text>
+      </View>
 
       <Text style={s.brand}>{product.brand} · {product.category}</Text>
       <Text style={s.name}>{product.name}</Text>
+      <RatingRow />
       <Text style={s.price}>₹{(product.price / 100).toFixed(0)}</Text>
       {product.description ? <Text style={s.desc}>{product.description}</Text> : null}
       {product.isTryable && (
@@ -169,8 +196,8 @@ export default function ProductScreen() {
         onPress={handleAddToCart}
         disabled={!selectedSku || selectedSkuUnavailable}
       >
-        <Text style={[s.addBtnText, added && { color: "#fff" }]}>
-          {added ? "Added to Cart ✓" : "Add to Cart"}
+        <Text style={[s.addBtnText, added && { color: T.white }]}>
+          {added ? "ADDED TO BAG ✓" : "ADD TO BAG"}
         </Text>
       </TouchableOpacity>
 
@@ -192,36 +219,77 @@ export default function ProductScreen() {
 }
 
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#0a0a0a" },
-  content: { paddingBottom: 48 },
-  center: { flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center" },
-  hero: { backgroundColor: "#1a1a1a", height: 260, alignItems: "center", justifyContent: "center" },
-  heroEmoji: { fontSize: 96 },
-  brand: { color: "#888", fontSize: 13, marginTop: 16, marginHorizontal: 20, textTransform: "uppercase", letterSpacing: 0.5 },
-  name: { color: "#fff", fontSize: 24, fontWeight: "bold", marginHorizontal: 20, marginTop: 4 },
-  price: { color: "#22c55e", fontSize: 22, fontWeight: "bold", marginHorizontal: 20, marginTop: 4 },
-  desc: { color: "#aaa", fontSize: 14, marginHorizontal: 20, marginTop: 8, lineHeight: 20 },
-  tryBadge: {
-    backgroundColor: "#1a0a2e", borderRadius: 8, paddingHorizontal: 12,
-    paddingVertical: 6, marginHorizontal: 20, marginTop: 10, alignSelf: "flex-start",
+  scroll:   { flex: 1, backgroundColor: T.white },
+  content:  { paddingBottom: 48 },
+  center:   { flex: 1, backgroundColor: T.white, alignItems: "center", justifyContent: "center" },
+
+  imageBox: {
+    width: "100%",
+    aspectRatio: 0.75,
+    backgroundColor: T.lightBg,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  tryBadgeText: { color: "#a78bfa", fontSize: 12, fontWeight: "600" },
-  sectionLabel: { color: "#888", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginHorizontal: 20, marginTop: 24, marginBottom: 10 },
+  heroEmoji: { fontSize: 96 },
+
+  brand: {
+    color: T.gray, fontSize: 12, marginTop: 16, marginHorizontal: 20,
+    textTransform: "uppercase", letterSpacing: 0.8, fontFamily: T.font.bold,
+  },
+  name: {
+    color: T.dark, fontSize: 20, marginHorizontal: 20, marginTop: 4,
+    fontFamily: T.font.semi, lineHeight: 26,
+  },
+  price: {
+    color: T.dark, fontSize: 22, marginHorizontal: 20, marginTop: 4,
+    fontFamily: T.font.bold,
+  },
+  desc: {
+    color: T.mid, fontSize: 14, marginHorizontal: 20, marginTop: 8,
+    lineHeight: 20, fontFamily: T.font.regular,
+  },
+  tryBadge: {
+    backgroundColor: T.pinkLight, borderRadius: T.radiusMd,
+    paddingHorizontal: 12, paddingVertical: 6,
+    marginHorizontal: 20, marginTop: 10, alignSelf: "flex-start",
+  },
+  tryBadgeText: { color: T.pink, fontSize: 12, fontFamily: T.font.semi },
+
+  sectionLabel: {
+    color: T.gray, fontSize: 12, textTransform: "uppercase",
+    letterSpacing: 1, marginHorizontal: 20, marginTop: 24, marginBottom: 10,
+    fontFamily: T.font.bold,
+  },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 20 },
-  chip: { borderWidth: 1, borderColor: "#333", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  chipSelected: { backgroundColor: "#fff", borderColor: "#fff" },
-  chipText: { color: "#aaa", fontSize: 14 },
-  chipTextSelected: { color: "#000", fontWeight: "600" },
+  chip: { borderWidth: 1, borderColor: T.border, borderRadius: T.radius, paddingHorizontal: 16, paddingVertical: 8 },
+  chipSelected: { backgroundColor: T.dark, borderColor: T.dark },
+  chipText: { color: T.mid, fontSize: 14, fontFamily: T.font.regular },
+  chipTextSelected: { color: T.white, fontFamily: T.font.semi },
   chipUnavailable: { opacity: 0.4 },
   chipTextUnavailable: { textDecorationLine: "line-through" },
-  oosNote: { color: "#ef4444", fontSize: 13, marginHorizontal: 20, marginTop: 12 },
-  addBtn: { backgroundColor: "#fff", borderRadius: 14, padding: 20, alignItems: "center", margin: 20, marginBottom: 0 },
-  addBtnDone: { backgroundColor: "#22c55e" },
-  addBtnDisabled: { backgroundColor: "#2a2a2a" },
-  addBtnText: { color: "#000", fontWeight: "bold", fontSize: 17 },
-  switchBtn: { backgroundColor: "#374151", borderRadius: 14, padding: 16, alignItems: "center", marginHorizontal: 20, marginTop: 10 },
-  switchBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+
+  oosNote: { color: T.red, fontSize: 13, marginHorizontal: 20, marginTop: 12, fontFamily: T.font.regular },
+
+  addBtn: {
+    backgroundColor: T.pink, borderRadius: T.radius,
+    paddingVertical: 16, alignItems: "center",
+    marginHorizontal: 20, marginTop: 20,
+  },
+  addBtnDone: { backgroundColor: T.green },
+  addBtnDisabled: { backgroundColor: T.lightBg },
+  addBtnText: {
+    color: T.white, fontFamily: T.font.semi, fontSize: 14,
+    letterSpacing: 1, textTransform: "uppercase",
+  },
+
+  switchBtn: {
+    backgroundColor: T.mid, borderRadius: T.radius, paddingVertical: 14,
+    alignItems: "center", marginHorizontal: 20, marginTop: 10,
+  },
+  switchBtnText: { color: T.white, fontFamily: T.font.semi, fontSize: 14 },
+
   goCartBtn: { alignItems: "center", padding: 16 },
-  goCartText: { color: "#3b82f6", fontSize: 15, fontWeight: "600" },
-  errorText: { color: "#ef4444", fontSize: 16 },
+  goCartText: { color: T.pink, fontSize: 15, fontFamily: T.font.semi },
+
+  errorText: { color: T.red, fontSize: 16, fontFamily: T.font.regular },
 });
