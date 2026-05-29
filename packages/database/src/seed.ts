@@ -317,6 +317,35 @@ async function main(): Promise<void> {
     });
     console.log(`  Banner seeded: ${b.title}`);
   }
+
+  // Seed bin locations for the first active warehouse
+  const warehouse1 = await prisma.warehouse.findFirst({ where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } })
+  if (warehouse1) {
+    const zones = ['A', 'B', 'C']
+    const aisles = ['01', '02', '03', '04']
+    const racks = ['01', '02', '03']
+    const shelves = ['1', '2', '3', '4']
+
+    for (const zone of zones) {
+      for (const aisle of aisles) {
+        for (const rack of racks) {
+          for (const shelf of shelves) {
+            const locationCode = `${zone}-${aisle}-${rack}-${shelf}`
+            await prisma.binLocation.upsert({
+              where: { warehouseId_locationCode: { warehouseId: warehouse1.id, locationCode } },
+              update: {},
+              create: {
+                warehouseId: warehouse1.id,
+                zone, aisle, rack, shelf, locationCode,
+                capacity: 50,
+              },
+            })
+          }
+        }
+      }
+    }
+    console.log(`Seeded ${zones.length * aisles.length * racks.length * shelves.length} bin locations for ${warehouse1.name}`)
+  }
 }
 
 main()
