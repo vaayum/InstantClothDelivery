@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-type SkuSeed = { id: string; size: string; color: string; barcode: string };
+type SkuSeed = { id: string; size: string; color: string; colorHex: string; barcode: string };
 type ProductSeed = {
   id: string;
   name: string;
@@ -10,6 +10,8 @@ type ProductSeed = {
   category: string;
   gender: string;
   price: number;
+  mrp: number;
+  description: string;
   skus: SkuSeed[];
 };
 
@@ -21,10 +23,12 @@ const products: ProductSeed[] = [
     category: "Shirts",
     gender: "Men",
     price: 149900,
+    mrp: 199900,
+    description: "A timeless Oxford shirt crafted from 100% pure cotton. Features a button-down collar, chest pocket, and relaxed fit perfect for both casual and smart-casual occasions.",
     skus: [
-      { id: "sku-os-s", size: "S", color: "White", barcode: "HMOS-WHT-S" },
-      { id: "sku-os-m", size: "M", color: "White", barcode: "HMOS-WHT-M" },
-      { id: "sku-os-l", size: "L", color: "White", barcode: "HMOS-WHT-L" },
+      { id: "sku-os-s", size: "S", color: "White", colorHex: "#FFFFFF", barcode: "HMOS-WHT-S" },
+      { id: "sku-os-m", size: "M", color: "White", colorHex: "#FFFFFF", barcode: "HMOS-WHT-M" },
+      { id: "sku-os-l", size: "L", color: "White", colorHex: "#FFFFFF", barcode: "HMOS-WHT-L" },
     ],
   },
   {
@@ -34,9 +38,11 @@ const products: ProductSeed[] = [
     category: "Trousers",
     gender: "Men",
     price: 199900,
+    mrp: 249900,
+    description: "Tailored slim-fit chinos in a stretch cotton blend for all-day comfort. Mid-rise waistband with five-pocket styling. Pairs effortlessly with shirts or casual tees.",
     skus: [
-      { id: "sku-sc-30", size: "30", color: "Navy", barcode: "ZARC-NAV-30" },
-      { id: "sku-sc-32", size: "32", color: "Navy", barcode: "ZARC-NAV-32" },
+      { id: "sku-sc-30", size: "30", color: "Navy", colorHex: "#1B2A4A", barcode: "ZARC-NAV-30" },
+      { id: "sku-sc-32", size: "32", color: "Navy", colorHex: "#1B2A4A", barcode: "ZARC-NAV-32" },
     ],
   },
   {
@@ -46,9 +52,11 @@ const products: ProductSeed[] = [
     category: "Dresses",
     gender: "Women",
     price: 249900,
+    mrp: 624900,
+    description: "A feminine wrap dress in a vibrant floral print. V-neckline, adjustable tie waist, and flowy midi-length skirt. Made from lightweight viscose for a breezy, comfortable feel.",
     skus: [
-      { id: "sku-fd-s", size: "S", color: "Floral Print", barcode: "MNFD-FLR-S" },
-      { id: "sku-fd-m", size: "M", color: "Floral Print", barcode: "MNFD-FLR-M" },
+      { id: "sku-fd-s", size: "S", color: "Floral Print", colorHex: "#E91E8C", barcode: "MNFD-FLR-S" },
+      { id: "sku-fd-m", size: "M", color: "Floral Print", colorHex: "#E91E8C", barcode: "MNFD-FLR-M" },
     ],
   },
   {
@@ -58,10 +66,12 @@ const products: ProductSeed[] = [
     category: "T-Shirts",
     gender: "Unisex",
     price: 99900,
+    mrp: 199900,
+    description: "Supima cotton crew neck tee with a smooth, soft finish. A versatile wardrobe essential available in a relaxed, everyday fit. Pre-washed to reduce shrinkage.",
     skus: [
-      { id: "sku-ct-m", size: "M", color: "Black", barcode: "UNBT-BLK-M" },
-      { id: "sku-ct-l", size: "L", color: "Black", barcode: "UNBT-BLK-L" },
-      { id: "sku-ct-xl", size: "XL", color: "Black", barcode: "UNBT-BLK-XL" },
+      { id: "sku-ct-m", size: "M", color: "Black", colorHex: "#1C1C1C", barcode: "UNBT-BLK-M" },
+      { id: "sku-ct-l", size: "L", color: "Black", colorHex: "#1C1C1C", barcode: "UNBT-BLK-L" },
+      { id: "sku-ct-xl", size: "XL", color: "Black", colorHex: "#1C1C1C", barcode: "UNBT-BLK-XL" },
     ],
   },
   {
@@ -71,9 +81,11 @@ const products: ProductSeed[] = [
     category: "Ethnic",
     gender: "Men",
     price: 179900,
+    mrp: 249900,
+    description: "Handcrafted straight-cut kurta in pure linen. Features subtle texture weave, mandarin collar, and side slits for ease of movement. Perfect for festive and everyday Indian wear.",
     skus: [
-      { id: "sku-lk-s", size: "S", color: "Beige", barcode: "FABK-BEI-S" },
-      { id: "sku-lk-m", size: "M", color: "Beige", barcode: "FABK-BEI-M" },
+      { id: "sku-lk-s", size: "S", color: "Beige", colorHex: "#D4B896", barcode: "FABK-BEI-S" },
+      { id: "sku-lk-m", size: "M", color: "Beige", colorHex: "#D4B896", barcode: "FABK-BEI-M" },
     ],
   },
   {
@@ -83,9 +95,11 @@ const products: ProductSeed[] = [
     category: "Jeans",
     gender: "Women",
     price: 299900,
+    mrp: 399900,
+    description: "High-rise skinny jeans in dark indigo denim. Super-stretch fabric sculpts and moves with you. Classic five-pocket design with Levi's signature back patch.",
     skus: [
-      { id: "sku-dj-28", size: "28", color: "Dark Blue", barcode: "LEVJ-DBL-28" },
-      { id: "sku-dj-30", size: "30", color: "Dark Blue", barcode: "LEVJ-DBL-30" },
+      { id: "sku-dj-28", size: "28", color: "Dark Blue", colorHex: "#1A237E", barcode: "LEVJ-DBL-28" },
+      { id: "sku-dj-30", size: "30", color: "Dark Blue", colorHex: "#1A237E", barcode: "LEVJ-DBL-30" },
     ],
   },
   {
@@ -95,9 +109,11 @@ const products: ProductSeed[] = [
     category: "Dresses",
     gender: "Women",
     price: 229900,
+    mrp: 299900,
+    description: "Bold geometric print maxi dress with a relaxed silhouette. Sleeveless design with a round neckline and concealed back zipper. Ideal for summer evenings and occasions.",
     skus: [
-      { id: "sku-md-m", size: "M", color: "Geometric Print", barcode: "ANDM-GEO-M" },
-      { id: "sku-md-l", size: "L", color: "Geometric Print", barcode: "ANDM-GEO-L" },
+      { id: "sku-md-m", size: "M", color: "Geometric Print", colorHex: "#7B5EA7", barcode: "ANDM-GEO-M" },
+      { id: "sku-md-l", size: "L", color: "Geometric Print", colorHex: "#7B5EA7", barcode: "ANDM-GEO-L" },
     ],
   },
   {
@@ -107,10 +123,12 @@ const products: ProductSeed[] = [
     category: "T-Shirts",
     gender: "Men",
     price: 179900,
+    mrp: 249900,
+    description: "Premium piqué cotton polo with a two-button placket and ribbed collar and cuffs. Subtle embroidered logo at chest. A refined take on the casual classic.",
     skus: [
-      { id: "sku-ps-m", size: "M", color: "Grey", barcode: "ARRP-GRY-M" },
-      { id: "sku-ps-l", size: "L", color: "Grey", barcode: "ARRP-GRY-L" },
-      { id: "sku-ps-xl", size: "XL", color: "Grey", barcode: "ARRP-GRY-XL" },
+      { id: "sku-ps-m", size: "M", color: "Grey", colorHex: "#9E9E9E", barcode: "ARRP-GRY-M" },
+      { id: "sku-ps-l", size: "L", color: "Grey", colorHex: "#9E9E9E", barcode: "ARRP-GRY-L" },
+      { id: "sku-ps-xl", size: "XL", color: "Grey", colorHex: "#9E9E9E", barcode: "ARRP-GRY-XL" },
     ],
   },
   {
@@ -120,9 +138,11 @@ const products: ProductSeed[] = [
     category: "Ethnic",
     gender: "Women",
     price: 349900,
+    mrp: 499900,
+    description: "Three-piece salwar suit set with intricate embroidery on the kurta. Includes matching churidar and dupatta. Crafted in soft art silk for a graceful, festive look.",
     skus: [
-      { id: "sku-ss-s", size: "S", color: "Turquoise", barcode: "BIBS-TRQ-S" },
-      { id: "sku-ss-m", size: "M", color: "Turquoise", barcode: "BIBS-TRQ-M" },
+      { id: "sku-ss-s", size: "S", color: "Turquoise", colorHex: "#1ABC9C", barcode: "BIBS-TRQ-S" },
+      { id: "sku-ss-m", size: "M", color: "Turquoise", colorHex: "#1ABC9C", barcode: "BIBS-TRQ-M" },
     ],
   },
   {
@@ -132,9 +152,11 @@ const products: ProductSeed[] = [
     category: "Shorts",
     gender: "Men",
     price: 149900,
+    mrp: 249900,
+    description: "Rugged cargo shorts with multiple utility pockets. Drawstring waist and mid-thigh length. Durable twill construction that's built for outdoor adventures and casual outings.",
     skus: [
-      { id: "sku-cs-30", size: "30", color: "Olive", barcode: "RDCS-OLV-30" },
-      { id: "sku-cs-32", size: "32", color: "Olive", barcode: "RDCS-OLV-32" },
+      { id: "sku-cs-30", size: "30", color: "Olive", colorHex: "#808000", barcode: "RDCS-OLV-30" },
+      { id: "sku-cs-32", size: "32", color: "Olive", colorHex: "#808000", barcode: "RDCS-OLV-32" },
     ],
   },
 ];
@@ -171,7 +193,7 @@ async function main(): Promise<void> {
   for (const p of products) {
     const product = await prisma.product.upsert({
       where: { id: p.id },
-      update: { category: p.category, gender: p.gender },
+      update: { category: p.category, gender: p.gender, mrp: p.mrp, description: p.description },
       create: {
         id: p.id,
         name: p.name,
@@ -179,6 +201,8 @@ async function main(): Promise<void> {
         category: p.category,
         gender: p.gender,
         price: p.price,
+        mrp: p.mrp,
+        description: p.description,
         images: [],
       },
     });
@@ -186,12 +210,13 @@ async function main(): Promise<void> {
     for (const s of p.skus) {
       const sku = await prisma.sku.upsert({
         where: { id: s.id },
-        update: {},
+        update: { colorHex: s.colorHex },
         create: {
           id: s.id,
           productId: product.id,
           size: s.size,
           color: s.color,
+          colorHex: s.colorHex,
           barcode: s.barcode,
         },
       });
@@ -210,6 +235,60 @@ async function main(): Promise<void> {
     }
 
     console.log(`  Product seeded: ${product.name} [${p.gender}]`);
+  }
+
+  const bannerData = [
+    {
+      id: "banner-sale",
+      title: "UP TO 70% OFF",
+      subtitle: "Best of Fashion",
+      bgColor: "#FF3F6C",
+      textColor: "#FFFFFF",
+      actionType: "discount",
+      actionValue: "20",
+      isActive: true,
+      sortOrder: 0,
+    },
+    {
+      id: "banner-new",
+      title: "NEW ARRIVALS",
+      subtitle: "Fresh Styles Daily",
+      bgColor: "#282C3F",
+      textColor: "#FFFFFF",
+      actionType: "sort",
+      actionValue: "new_arrivals",
+      isActive: true,
+      sortOrder: 1,
+    },
+    {
+      id: "banner-trendy",
+      title: "TRENDY PICKS",
+      subtitle: "Curated For You",
+      bgColor: "#282C3F",
+      textColor: "#FF3F6C",
+      actionType: "discount",
+      actionValue: "10",
+      isActive: true,
+      sortOrder: 2,
+    },
+  ];
+
+  for (const b of bannerData) {
+    await prisma.banner.upsert({
+      where: { id: b.id },
+      update: {
+        title: b.title,
+        subtitle: b.subtitle,
+        bgColor: b.bgColor,
+        textColor: b.textColor,
+        actionType: b.actionType,
+        actionValue: b.actionValue,
+        isActive: b.isActive,
+        sortOrder: b.sortOrder,
+      },
+      create: b,
+    });
+    console.log(`  Banner seeded: ${b.title}`);
   }
 }
 
