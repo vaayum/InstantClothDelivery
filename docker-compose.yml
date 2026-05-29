@@ -45,6 +45,19 @@ services:
       timeout: 10s
       retries: 5
 
+  floci:
+    image: floci/floci:latest
+    container_name: threaddash_floci
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_floci/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   osrm:
     image: osrm/osrm-backend:latest
     container_name: threaddash_osrm
