@@ -34,7 +34,13 @@ router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
   if (!warehouseId || !skuId || quantityDelta === undefined || !reason) {
     return res.status(400).json({ error: 'warehouseId, skuId, quantityDelta, reason required' })
   }
-  if (quantityDelta === 0) return res.status(400).json({ error: 'quantityDelta cannot be zero' })
+  const VALID_REASONS = ['DAMAGE', 'SHRINKAGE', 'AUDIT_CORRECTION', 'FOUND', 'SYSTEM_ERROR', 'OTHER']
+  if (!VALID_REASONS.includes(reason)) {
+    return res.status(400).json({ error: `reason must be one of: ${VALID_REASONS.join(', ')}` })
+  }
+  const delta = Number(quantityDelta)
+  if (!Number.isInteger(delta)) return res.status(400).json({ error: 'quantityDelta must be an integer' })
+  if (delta === 0) return res.status(400).json({ error: 'quantityDelta cannot be zero' })
 
   const prisma = getPrisma()
 
@@ -45,7 +51,7 @@ router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
       })
       if (!inventory) throw Object.assign(new Error('Inventory record not found'), { status: 404 })
 
-      const newQty = inventory.quantityAvailable + quantityDelta
+      const newQty = inventory.quantityAvailable + delta
       if (newQty < 0) throw Object.assign(new Error('Adjustment would result in negative available stock'), { status: 400 })
 
       await tx.inventory.update({
@@ -54,7 +60,7 @@ router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
       })
 
       await tx.stockAdjustment.create({
-        data: { warehouseId, skuId, quantityDelta, reason, notes, createdBy: req.user!.userId },
+        data: { warehouseId, skuId, quantityDelta: delta, reason, notes, createdBy: req.user!.userId },
       })
     })
 
