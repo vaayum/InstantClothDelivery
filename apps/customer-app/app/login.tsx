@@ -155,35 +155,35 @@ const s = StyleSheet.create({
   kav: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
 
   logoBlock: { alignItems: "center", marginBottom: 36 },
-  logoText: { fontSize: 40, fontWeight: T.bold, color: T.pink, letterSpacing: -1 },
-  logoSub: { fontSize: 10, color: T.gray, letterSpacing: 2, marginTop: 2 },
+  logoText: { fontSize: 40, fontFamily: T.font.bold, color: T.pink, letterSpacing: -1 },
+  logoSub: { fontSize: 10, color: T.gray, letterSpacing: 2, marginTop: 2, fontFamily: T.font.regular },
 
   card: { backgroundColor: T.white, borderRadius: T.radiusMd, borderWidth: 1, borderColor: T.border, padding: 24 },
-  title: { fontSize: 20, fontWeight: T.bold, color: T.dark, marginBottom: 4 },
-  sub: { fontSize: 13, color: T.gray, marginBottom: 24 },
+  title: { fontSize: 20, fontFamily: T.font.bold, color: T.dark, marginBottom: 4 },
+  sub: { fontSize: 13, color: T.gray, marginBottom: 24, fontFamily: T.font.regular },
 
   phoneRow: { flexDirection: "row", borderWidth: 1, borderColor: T.border, borderRadius: T.radius, overflow: "hidden", marginBottom: 16 },
   cc: { backgroundColor: T.lightBg, paddingHorizontal: 14, justifyContent: "center", borderRightWidth: 1, borderRightColor: T.border },
-  ccText: { fontSize: 15, fontWeight: T.semi, color: T.dark },
-  phoneInput: { flex: 1, paddingHorizontal: 14, paddingVertical: 14, fontSize: 16, color: T.dark },
+  ccText: { fontSize: 15, fontFamily: T.font.semi, color: T.dark },
+  phoneInput: { flex: 1, paddingHorizontal: 14, paddingVertical: 14, fontSize: 16, color: T.dark, fontFamily: T.font.regular },
 
   otpRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
   otpBox: {
     width: 44, height: 50, borderWidth: 1, borderColor: T.border, borderRadius: T.radius,
-    fontSize: 22, fontWeight: T.bold, color: T.dark, textAlign: "center",
+    fontSize: 22, fontFamily: T.font.bold, color: T.dark, textAlign: "center",
     backgroundColor: T.lightBg,
   },
   otpBoxFilled: { borderColor: T.pink, backgroundColor: T.white },
 
-  error: { color: T.pink, fontSize: 12, marginBottom: 8 },
+  error: { color: T.pink, fontSize: 12, marginBottom: 8, fontFamily: T.font.regular },
 
   btn: { backgroundColor: T.pink, borderRadius: T.radius, paddingVertical: 14, alignItems: "center", marginTop: 8 },
   btnDisabled: { opacity: 0.5 },
-  btnText: { color: T.white, fontWeight: T.bold, fontSize: 14, letterSpacing: 1 },
+  btnText: { color: T.white, fontFamily: T.font.bold, fontSize: 14, letterSpacing: 1 },
 
-  terms: { fontSize: 11, color: T.gray, textAlign: "center", marginTop: 20, lineHeight: 17 },
-  termsLink: { color: T.pink },
+  terms: { fontSize: 11, color: T.gray, textAlign: "center", marginTop: 20, lineHeight: 17, fontFamily: T.font.regular },
+  termsLink: { color: T.pink, fontFamily: T.font.regular },
 
   changeNum: { marginTop: 20, alignItems: "center" },
-  changeNumText: { color: T.pink, fontSize: 13, fontWeight: T.semi },
+  changeNumText: { color: T.pink, fontSize: 13, fontFamily: T.font.semi },
 });
