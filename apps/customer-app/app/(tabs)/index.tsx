@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator, RefreshControl, Alert,
@@ -8,7 +8,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { api, clearSession } from "../lib/api";
-import type { Product, MeResponse, Banner } from "../lib/types";
+import type { Product, MeResponse, Banner, Brand } from "../lib/types";
 import { useWishlist } from "../context/WishlistContext";
 import { T } from "../lib/theme";
 
@@ -114,18 +114,38 @@ const pb = StyleSheet.create({
   sub:      { fontFamily: T.font.regular, fontSize: 13, marginTop: 4, opacity: 0.85 },
 });
 
-const BRANDS = [
-  { id: "1", name: "Nike",   initial: "N", bg: "#000000" },
-  { id: "2", name: "Zara",   initial: "Z", bg: "#2d2d2d" },
-  { id: "3", name: "H&M",    initial: "H", bg: "#e50010" },
-  { id: "4", name: "Puma",   initial: "P", bg: "#e60012" },
-  { id: "5", name: "Adidas", initial: "A", bg: "#000000" },
-  { id: "6", name: "Levis",  initial: "L", bg: "#c8102e" },
-  { id: "7", name: "Tommy",  initial: "T", bg: "#003087" },
-  { id: "8", name: "Arrow",  initial: "A", bg: "#1a1a1a" },
+function useBrands(): Brand[] {
+  const [brands, setBrands] = useState<Brand[]>([]);
+  useEffect(() => {
+    api.get<Brand[]>("/api/brands")
+      .then((r) => setBrands(r.data))
+      .catch(() => {}); // silent: BRANDS fallback array used when empty
+  }, []);
+  return brands;
+}
+
+const BRANDS: Brand[] = [
+  { id: "1", name: "Nike",   slug: "nike",    logoUrl: null, createdAt: "" },
+  { id: "2", name: "Zara",   slug: "zara",    logoUrl: null, createdAt: "" },
+  { id: "3", name: "H&M",    slug: "hm",      logoUrl: null, createdAt: "" },
+  { id: "4", name: "Puma",   slug: "puma",    logoUrl: null, createdAt: "" },
+  { id: "5", name: "Adidas", slug: "adidas",  logoUrl: null, createdAt: "" },
+  { id: "6", name: "Levis",  slug: "levis",   logoUrl: null, createdAt: "" },
+  { id: "7", name: "Tommy",  slug: "tommy",   logoUrl: null, createdAt: "" },
+  { id: "8", name: "Arrow",  slug: "arrow",   logoUrl: null, createdAt: "" },
 ];
 
+const BRAND_BG: Record<string, string> = {
+  "Nike": "#000000", "Zara": "#2d2d2d", "H&M": "#e50010",
+  "Puma": "#e60012", "Adidas": "#000000", "Levis": "#c8102e",
+  "Tommy": "#003087", "Arrow": "#1a1a1a", "Mango": "#b07040",
+  "Uniqlo": "#FF0000", "Fabindia": "#8B4513",
+};
+
 function BrandStories() {
+  const apiBrands = useBrands();
+  const items = apiBrands.length > 0 ? apiBrands : BRANDS; // BRANDS is the hardcoded fallback
+
   return (
     <ScrollView
       horizontal
@@ -133,10 +153,14 @@ function BrandStories() {
       contentContainerStyle={bs.content}
       style={bs.scroll}
     >
-      {BRANDS.map((b) => (
+      {items.map((b) => (
         <View key={b.id} style={bs.item}>
-          <View style={[bs.circle, { backgroundColor: b.bg }]}>
-            <Text style={bs.initial}>{b.initial}</Text>
+          <View style={[bs.circle, { backgroundColor: BRAND_BG[b.name] ?? "#555555" }]}>
+            {b.logoUrl ? (
+              <Image source={{ uri: b.logoUrl }} style={bs.logo} />
+            ) : (
+              <Text style={bs.initial}>{b.name[0]}</Text>
+            )}
           </View>
           <Text style={bs.name}>{b.name}</Text>
         </View>
@@ -151,6 +175,7 @@ const bs = StyleSheet.create({
   circle:   { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: T.pink },
   initial:  { color: T.white, fontFamily: T.font.bold, fontSize: 18 },
   name:     { fontSize: 10, color: T.dark, fontFamily: T.font.regular, marginTop: 4 },
+  logo:     { width: 40, height: 40, borderRadius: 20 },
 });
 
 function productDiscount(p: Product): number {
