@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { Text, View } from "react-native";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,7 +22,7 @@ function CartBadge() {
   );
 }
 
-type TabIconName = React.ComponentProps<typeof Ionicons>["name"];
+type TabIconName = ComponentProps<typeof Ionicons>["name"];
 type IconProps = {
   focused: boolean;
   label: string;
