@@ -303,6 +303,7 @@ model BinLocation {
   capacity     Int         @default(100)
   isActive     Boolean     @default(true)
   inventory    Inventory[]
+  inboundItems InboundShipmentItem[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -338,6 +339,8 @@ model InboundShipmentItem {
   receivedQty   Int             @default(0)
   binLocationId String?
   notes         String?
+  updatedAt     DateTime @updatedAt
+  binLocation   BinLocation? @relation(fields: [binLocationId], references: [id])
 
   @@map("inbound_shipment_items")
 }
