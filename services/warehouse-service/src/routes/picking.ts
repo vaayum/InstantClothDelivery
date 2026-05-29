@@ -18,7 +18,27 @@ router.get("/:warehouseId", requireAuth, requireWarehouseStaff, async (req, res)
     orderBy: { slaDeadline: "asc" },
     include: { items: { include: { sku: true } } },
   });
-  return res.json(tasks);
+
+  // Fetch bin locations for all SKUs in these tasks within this warehouse
+  const skuIds = [...new Set(tasks.flatMap(t => t.items.map(i => i.skuId)))];
+  const inventoryWithBins = skuIds.length > 0
+    ? await prisma.inventory.findMany({
+        where: { warehouseId, skuId: { in: skuIds } },
+        select: { skuId: true, binLocation: { select: { locationCode: true } } },
+      })
+    : [];
+  const binBySkuId = new Map(inventoryWithBins.map(i => [i.skuId, i.binLocation?.locationCode ?? null]));
+
+  // Attach binLocationCode as a flat field on each item
+  const tasksWithBins = tasks.map(task => ({
+    ...task,
+    items: task.items.map(item => ({
+      ...item,
+      binLocationCode: binBySkuId.get(item.skuId) ?? null,
+    })),
+  }));
+
+  return res.json(tasksWithBins);
 });
 
 router.post("/:orderId/pick-item", requireAuth, requireWarehouseStaff, async (req, res) => {

@@ -32,6 +32,7 @@ export interface PickingItem {
   status: PickingItemStatus;
   scannedAt: string | null;
   sku: { id: string; size: string; color: string; sku: string };
+  binLocationCode: string | null;
 }
 
 export interface PickingTask {

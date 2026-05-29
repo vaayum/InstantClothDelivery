@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { getPrisma } from "../lib/db";
+import { requireAuth } from "@threaddash/auth";
+import { requireRole } from "../lib/role";
 
 const router = Router();
 
@@ -100,5 +102,42 @@ router.get("/availability", async (req, res) => {
     return res.status(500).json({ error: "Availability check failed" });
   }
 });
+
+// GET /inventory/admin?warehouseId=X&search=Y(optional)
+router.get('/admin', requireAuth, requireRole('ADMIN'), async (req, res) => {
+  const { warehouseId, search } = req.query as { warehouseId: string; search?: string }
+  if (!warehouseId) return res.status(400).json({ error: 'warehouseId required' })
+
+  const prisma = getPrisma()
+  const inventory = await prisma.inventory.findMany({
+    where: {
+      warehouseId,
+      ...(search
+        ? {
+            sku: {
+              OR: [
+                { product: { name: { contains: search, mode: 'insensitive' } } },
+                { product: { brand: { contains: search, mode: 'insensitive' } } },
+                { color: { contains: search, mode: 'insensitive' } },
+                { size: { contains: search, mode: 'insensitive' } },
+                { barcode: { contains: search, mode: 'insensitive' } },
+              ],
+            },
+          }
+        : {}),
+    },
+    include: {
+      sku: {
+        include: {
+          product: { select: { id: true, name: true, brand: true, category: true, images: true } },
+        },
+      },
+      binLocation: true,
+    },
+    orderBy: { sku: { product: { name: 'asc' } } },
+  })
+
+  res.json(inventory)
+})
 
 export default router;

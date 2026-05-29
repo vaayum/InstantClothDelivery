@@ -1,5 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
+import InventoryPage from './pages/InventoryPage'
+import BinLocationsPage from './pages/BinLocationsPage'
+import InboundPage from './pages/InboundPage'
+import AdjustmentsPage from './pages/AdjustmentsPage'
 
 const api = axios.create({ baseURL: "http://localhost:3000" });
 
@@ -11,7 +15,7 @@ api.interceptors.request.use((config) => {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "overview" | "orders" | "agents" | "warehouse" | "catalog";
+type Tab = "overview" | "orders" | "agents" | "warehouse" | "catalog" | "inventory";
 
 type OrderStatus =
   | "PENDING" | "WAREHOUSE_PROCESSING" | "READY_FOR_PICKUP"
@@ -847,11 +851,23 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "agents", label: "Agents" },
   { id: "warehouse", label: "Warehouse" },
   { id: "catalog", label: "Catalog" },
+  { id: "inventory", label: "Inventory" },
 ];
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("overview");
   const [authed, setAuthed] = useState(() => !!localStorage.getItem("admin_token"));
+  const [inventorySubTab, setInventorySubTab] = useState<'overview' | 'bins' | 'inbound' | 'adjustments'>('overview')
+  const [inventoryWarehouseId, setInventoryWarehouseId] = useState<string>('')
+
+  // Fetch first warehouse ID for Inventory pages
+  useEffect(() => {
+    if (tab === 'inventory' && !inventoryWarehouseId) {
+      api.get<{ id: string }[]>('/api/admin/warehouse')
+        .then(r => { if (r.data[0]) setInventoryWarehouseId(r.data[0].id) })
+        .catch(() => {})
+    }
+  }, [tab, inventoryWarehouseId])
 
   if (!authed) {
     return <LoginView onLogin={() => setAuthed(true)} />;
@@ -900,6 +916,23 @@ export default function App() {
         {tab === "agents" && <AgentsView />}
         {tab === "warehouse" && <WarehouseView />}
         {tab === "catalog" && <CatalogView />}
+        {tab === 'inventory' && (
+          <div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+              {([['overview', 'Stock Overview'], ['bins', 'Bin Locations'], ['inbound', 'Inbound Receiving'], ['adjustments', 'Adjustments']] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setInventorySubTab(key)}
+                  style={{ padding: '6px 14px', background: inventorySubTab === key ? '#4a90e2' : '#222', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {!inventoryWarehouseId && <p style={{ color: '#888' }}>Loading warehouse…</p>}
+            {inventoryWarehouseId && inventorySubTab === 'overview'     && <InventoryPage warehouseId={inventoryWarehouseId} />}
+            {inventoryWarehouseId && inventorySubTab === 'bins'         && <BinLocationsPage warehouseId={inventoryWarehouseId} />}
+            {inventoryWarehouseId && inventorySubTab === 'inbound'      && <InboundPage warehouseId={inventoryWarehouseId} />}
+            {inventoryWarehouseId && inventorySubTab === 'adjustments'  && <AdjustmentsPage warehouseId={inventoryWarehouseId} />}
+          </div>
+        )}
       </div>
     </div>
   );

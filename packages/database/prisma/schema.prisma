@@ -115,6 +115,22 @@ enum NotificationType {
   RETURN_ARRIVED
 }
 
+enum InboundStatus {
+  EXPECTED
+  RECEIVING
+  COMPLETED
+  DISCREPANCY
+}
+
+enum AdjustmentReason {
+  DAMAGE
+  SHRINKAGE
+  AUDIT_CORRECTION
+  FOUND
+  SYSTEM_ERROR
+  OTHER
+}
+
 // ─── Users & Auth ─────────────────────────────────────────────────────────────
 
 model User {
@@ -189,11 +205,14 @@ model Warehouse {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  zone          Zone          @relation(fields: [zoneId], references: [id])
-  inventory     Inventory[]
-  orders        Order[]
-  pickingTasks  PickingTask[]
-  pinnedByUsers User[]        @relation("UserPinnedWarehouse")
+  zone             Zone              @relation(fields: [zoneId], references: [id])
+  inventory        Inventory[]
+  orders           Order[]
+  pickingTasks     PickingTask[]
+  pinnedByUsers    User[]            @relation("UserPinnedWarehouse")
+  binLocations     BinLocation[]
+  inboundShipments InboundShipment[]
+  stockAdjustments StockAdjustment[]
 
   @@map("warehouses")
 }
@@ -244,10 +263,12 @@ model Sku {
   barcode   String   @unique
   createdAt DateTime @default(now())
 
-  product      Product       @relation(fields: [productId], references: [id])
-  inventory    Inventory[]
-  orderItems   OrderItem[]
-  pickingItems PickingItem[]
+  product          Product               @relation(fields: [productId], references: [id])
+  inventory        Inventory[]
+  orderItems       OrderItem[]
+  pickingItems     PickingItem[]
+  inboundItems     InboundShipmentItem[]
+  stockAdjustments StockAdjustment[]
 
   @@map("skus")
 }
@@ -256,16 +277,87 @@ model Inventory {
   id                String   @id @default(uuid())
   skuId             String
   warehouseId       String
+  binLocationId     String?
   quantityAvailable Int      @default(0)
   quantityReserved  Int      @default(0)
   reorderThreshold  Int      @default(3)
   updatedAt         DateTime @updatedAt
 
-  sku       Sku       @relation(fields: [skuId], references: [id])
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  sku         Sku          @relation(fields: [skuId], references: [id])
+  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id])
+  binLocation BinLocation? @relation(fields: [binLocationId], references: [id])
 
   @@unique([skuId, warehouseId])
   @@map("inventory")
+}
+
+model BinLocation {
+  id           String      @id @default(uuid())
+  warehouseId  String
+  warehouse    Warehouse   @relation(fields: [warehouseId], references: [id])
+  zone         String      // "A", "B", "C"
+  aisle        String      // "01", "02"
+  rack         String      // "01", "02"
+  shelf        String      // "1", "2", "3"
+  locationCode String      // generated as "A-01-02-3"
+  capacity     Int         @default(100)
+  isActive     Boolean     @default(true)
+  inventory    Inventory[]
+  inboundItems InboundShipmentItem[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([warehouseId, locationCode])
+  @@map("bin_locations")
+}
+
+model InboundShipment {
+  id          String               @id @default(uuid())
+  warehouseId String
+  warehouse   Warehouse            @relation(fields: [warehouseId], references: [id])
+  referenceNo String               @unique
+  supplier    String
+  status      InboundStatus        @default(EXPECTED)
+  expectedAt  DateTime?
+  receivedAt  DateTime?
+  createdBy   String
+  notes       String?
+  items       InboundShipmentItem[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@map("inbound_shipments")
+}
+
+model InboundShipmentItem {
+  id            String          @id @default(uuid())
+  shipmentId    String
+  shipment      InboundShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  skuId         String
+  sku           Sku             @relation(fields: [skuId], references: [id])
+  expectedQty   Int
+  receivedQty   Int             @default(0)
+  binLocationId String?
+  notes         String?
+  updatedAt     DateTime @updatedAt
+  binLocation   BinLocation? @relation(fields: [binLocationId], references: [id])
+
+  @@map("inbound_shipment_items")
+}
+
+model StockAdjustment {
+  id            String           @id @default(uuid())
+  warehouseId   String
+  warehouse     Warehouse        @relation(fields: [warehouseId], references: [id])
+  skuId         String
+  sku           Sku              @relation(fields: [skuId], references: [id])
+  quantityDelta Int
+  reason        AdjustmentReason
+  notes         String?
+  createdBy     String
+  createdAt     DateTime         @default(now())
+
+  @@map("stock_adjustments")
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────

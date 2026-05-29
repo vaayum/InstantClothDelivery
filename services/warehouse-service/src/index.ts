@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import inventoryRouter from "./routes/inventory";
 import pickingRouter from "./routes/picking";
 import returnsRouter from "./routes/returns";
+import binLocationsRouter from "./routes/bin-locations";
+import inboundRouter from "./routes/inbound";
+import adjustmentsRouter from "./routes/adjustments";
 import { startConsumer } from "./consumer";
 
 dotenv.config();
@@ -18,6 +21,9 @@ app.get("/health", (_req, res) =>
 app.use("/inventory", inventoryRouter);
 app.use("/picking-queue", pickingRouter);
 app.use("/returns", returnsRouter);
+app.use("/bin-locations", binLocationsRouter);
+app.use("/inbound", inboundRouter);
+app.use("/adjustments", adjustmentsRouter);
 
 if (require.main === module) {
   startConsumer().catch(console.error);

@@ -10,9 +10,10 @@
   },
   "dependencies": {
     "@threaddash/shared-types": "*",
+    "axios": "^1.7.0",
+    "bwip-js": "^4.11.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "axios": "^1.7.0",
     "socket.io-client": "^4.7.0"
   },
   "devDependencies": {

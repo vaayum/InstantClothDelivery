@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
 export { PrismaClient } from "@prisma/client";
+export { generateSkuBarcode } from './barcode';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
