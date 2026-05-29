@@ -74,10 +74,17 @@ router.post('/:id/receive-items', requireAuth, requireRole('ADMIN'), async (req,
   if (!shipment) return res.status(404).json({ error: 'Shipment not found' })
   if (shipment.status === 'COMPLETED') return res.status(400).json({ error: 'Shipment already completed' })
 
+  // Validate all itemIds belong to this shipment before starting transaction
+  const incomingItems = items as { itemId: string; receivedQty: number; binLocationId?: string }[]
+  for (const incoming of incomingItems) {
+    if (!shipment.items.find((i) => i.id === incoming.itemId)) {
+      return res.status(400).json({ error: `Item ${incoming.itemId} not found in shipment` })
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
-    for (const incoming of items as { itemId: string; receivedQty: number; binLocationId?: string }[]) {
-      const shipmentItem = shipment.items.find((i) => i.id === incoming.itemId)
-      if (!shipmentItem) continue
+    for (const incoming of incomingItems) {
+      const shipmentItem = shipment.items.find((i) => i.id === incoming.itemId)!
 
       await tx.inboundShipmentItem.update({
         where: { id: incoming.itemId },
