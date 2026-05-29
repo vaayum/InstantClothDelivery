@@ -1,9 +1,11 @@
 import { Router } from "express";
 import axios from "axios";
 import { requireAuth } from "@threaddash/auth";
+import { generateSkuBarcode } from "@threaddash/database";
 import { getPrisma } from "../lib/db";
 import { getRedis } from "../lib/redis";
 import { transitionOrder } from "../transitions";
+import { requireRole } from "../lib/role";
 
 const WAREHOUSE_URL = process.env.WAREHOUSE_SERVICE_URL ?? "http://localhost:3002";
 
@@ -115,6 +117,42 @@ router.post("/orders/:id/cancel", requireAuth, async (req, res): Promise<void> =
   } catch (err) {
     const message = err instanceof Error ? err.message : "Cancel failed";
     res.status(message.includes("Cannot transition") ? 409 : 500).json({ error: message });
+  }
+});
+
+// POST /admin/skus
+router.post("/skus", requireAuth, requireRole("ADMIN"), async (req, res): Promise<void> => {
+  const { productId, size, color, colorHex, barcode: providedBarcode } = req.body;
+
+  if (!productId || !size || !color || !colorHex) {
+    res.status(400).json({ error: "productId, size, color, colorHex required" });
+    return;
+  }
+
+  const product = await getPrisma().product.findUnique({
+    where: { id: productId },
+    select: { brand: true, category: true, gender: true },
+  });
+  if (!product) { res.status(404).json({ error: "Product not found" }); return; }
+
+  const barcode =
+    providedBarcode?.trim() ||
+    generateSkuBarcode(product.brand, product.category, product.gender, color, size);
+
+  try {
+    const sku = await getPrisma().sku.create({
+      data: { productId, size, color, colorHex, barcode },
+      include: { product: { select: { name: true, brand: true } } },
+    });
+    res.status(201).json(sku);
+  } catch (e: any) {
+    if (e.code === "P2002") {
+      res.status(409).json({
+        error: "Barcode already exists. Provide a unique barcode or leave blank for auto-generation.",
+      });
+      return;
+    }
+    throw e;
   }
 });
 
