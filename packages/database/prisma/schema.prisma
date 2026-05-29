@@ -194,6 +194,7 @@ model Warehouse {
   orders        Order[]
   pickingTasks  PickingTask[]
   pinnedByUsers User[]        @relation("UserPinnedWarehouse")
+  binLocations  BinLocation[]
 
   @@map("warehouses")
 }
@@ -256,16 +257,36 @@ model Inventory {
   id                String   @id @default(uuid())
   skuId             String
   warehouseId       String
+  binLocationId     String?
   quantityAvailable Int      @default(0)
   quantityReserved  Int      @default(0)
   reorderThreshold  Int      @default(3)
   updatedAt         DateTime @updatedAt
 
-  sku       Sku       @relation(fields: [skuId], references: [id])
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  sku         Sku          @relation(fields: [skuId], references: [id])
+  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id])
+  binLocation BinLocation? @relation(fields: [binLocationId], references: [id])
 
   @@unique([skuId, warehouseId])
   @@map("inventory")
+}
+
+model BinLocation {
+  id           String      @id @default(uuid())
+  warehouseId  String
+  warehouse    Warehouse   @relation(fields: [warehouseId], references: [id])
+  zone         String      // "A", "B", "C"
+  aisle        String      // "01", "02"
+  rack         String      // "01", "02"
+  shelf        String      // "1", "2", "3"
+  locationCode String      @unique // generated as "A-01-02-3"
+  capacity     Int         @default(100)
+  isActive     Boolean     @default(true)
+  inventory    Inventory[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("bin_locations")
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
