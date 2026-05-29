@@ -86,6 +86,10 @@ router.post('/:id/receive-items', requireAuth, requireRole('ADMIN'), async (req,
     for (const incoming of incomingItems) {
       const shipmentItem = shipment.items.find((i) => i.id === incoming.itemId)!
 
+      // Calculate delta vs previously recorded quantity to avoid double-counting on repeated calls
+      const previousQty = shipmentItem.receivedQty
+      const qtyDelta = incoming.receivedQty - previousQty
+
       await tx.inboundShipmentItem.update({
         where: { id: incoming.itemId },
         data: { receivedQty: incoming.receivedQty, binLocationId: incoming.binLocationId ?? null },
@@ -94,7 +98,7 @@ router.post('/:id/receive-items', requireAuth, requireRole('ADMIN'), async (req,
       await tx.inventory.upsert({
         where: { skuId_warehouseId: { skuId: shipmentItem.skuId, warehouseId: shipment.warehouseId } },
         update: {
-          quantityAvailable: { increment: incoming.receivedQty },
+          ...(qtyDelta !== 0 ? { quantityAvailable: { increment: qtyDelta } } : {}),
           ...(incoming.binLocationId ? { binLocationId: incoming.binLocationId } : {}),
         },
         create: {
@@ -127,6 +131,10 @@ router.post('/:id/complete', requireAuth, requireRole('ADMIN'), async (req, res)
     include: { items: true },
   })
   if (!shipment) return res.status(404).json({ error: 'Shipment not found' })
+
+  if (shipment.status === 'COMPLETED' || shipment.status === 'DISCREPANCY') {
+    return res.status(400).json({ error: 'Shipment already finalized' })
+  }
 
   const hasDiscrepancy = shipment.items.some((i) => i.receivedQty !== i.expectedQty)
   const finalStatus = hasDiscrepancy ? 'DISCREPANCY' : 'COMPLETED'

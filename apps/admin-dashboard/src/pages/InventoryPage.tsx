@@ -14,6 +14,10 @@ interface InventoryItem {
   }
 }
 
+function escHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
 function BarcodeCanvas({ value }: { value: string }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
@@ -38,13 +42,13 @@ function printBarcodeLabel(barcode: string, productName: string, skuDetails: str
   @media print{body{margin:0}}
 </style></head><body>
 <div class="label" id="root">
-  <div class="name">${productName}</div>
-  <div class="detail">${skuDetails}</div>
+  <div class="name">${escHtml(productName)}</div>
+  <div class="detail">${escHtml(skuDetails)}</div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bwip-js@3/dist/bwip-js-min.js"></script>
 <script>
   const c=document.createElement('canvas');
-  bwipjs.toCanvas(c,{bcid:'code128',text:'${barcode}',scale:2,height:10,includetext:true,textxalign:'center'});
+  bwipjs.toCanvas(c,{bcid:'code128',text:'${escHtml(barcode)}',scale:2,height:10,includetext:true,textxalign:'center'});
   document.getElementById('root').insertBefore(c,document.getElementById('root').firstChild);
   setTimeout(()=>{window.print();window.close()},300);
 </script></body></html>`)
