@@ -63,6 +63,8 @@ const routes: Record<string, string> = {
   "/api/orders":        `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
   "/api/catalog":       `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
   "/api/banners":       `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
+  "/api/brands":        `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
+  "/api/media":         `http://localhost:${process.env.ORDER_SERVICE_PORT ?? 3001}`,
   "/api/warehouse":     `http://localhost:${process.env.WAREHOUSE_SERVICE_PORT ?? 3002}`,
   "/api/routing":       `http://localhost:${process.env.ROUTING_SERVICE_PORT ?? 8000}`,
   "/api/notifications": `http://localhost:${process.env.NOTIFICATION_SERVICE_PORT ?? 3003}`,
