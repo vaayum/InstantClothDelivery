@@ -25,7 +25,7 @@ export const T = {
     regular: "Poppins_400Regular",
     semi:    "Poppins_600SemiBold",
     bold:    "Poppins_700Bold",
-  },
+  } as const,
   // Spacing
   radius:     4,
   radiusMd:   8,
